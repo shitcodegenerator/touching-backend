@@ -1,6 +1,6 @@
 const express = require('express')
 const bodyParser = require('body-parser');
-const connectDb = require('./config.js')
+// const connectDb = require('./config.js')
 const cors = require('cors');
 const dotEnv = require('dotenv').config()
 
@@ -10,17 +10,17 @@ const dotEnv = require('dotenv').config()
 const PORT = 8888
 
 const app = express()
-const corsOptions = {
-    origin: [
-      'http://localhost:8888',
-      'http://localhost:5173',
-],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  };
+// const corsOptions = {
+//     origin: [
+//       'http://localhost:8888',
+//       'http://localhost:5173',
+// ],
+//     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+//     allowedHeaders: ['Content-Type', 'Authorization'],
+//   };
   
-  app.use(cors(corsOptions));
-connectDb()
+app.use(cors());
+// connectDb()
 
 
 
