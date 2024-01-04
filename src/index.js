@@ -33,6 +33,10 @@ app.use(bodyParser.json());
 app.use('/api/auth', authRoutes);
 app.use('/api', articleRoutes);
 
+app.get('/', (req, res) => {
+  res.send('Hey this is my API running 🥳')
+})
+
 
 app.listen(PORT, () => {
     console.log(`Now listening at ${PORT}`)
