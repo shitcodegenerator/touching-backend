@@ -1,7 +1,14 @@
 {
+  "name": "ledbackend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:shitcodegenerator/touching-backend.git",
+  "author": "Sherry <sherry.tung@sincheng.net>",
+  "license": "MIT",
   "scripts": {
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon index.js"
   },
+  
   "dependencies": {
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
