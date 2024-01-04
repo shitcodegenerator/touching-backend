@@ -1,11 +1,11 @@
 const express = require('express')
 const bodyParser = require('body-parser');
-// const connectDb = require('./config.js')
+const connectDb = require('./src/config.js')
 const cors = require('cors');
 const dotEnv = require('dotenv').config()
 
-// const authRoutes = require('./routes/authRoutes.js'); 
-// const articleRoutes = require('./routes/articleRoutes.js'); 
+const authRoutes = require('./src/routes/authRoutes.js'); 
+const articleRoutes = require('./src/routes/articleRoutes.js'); 
 
 const PORT = 8888
 
@@ -20,7 +20,7 @@ const app = express()
 //   };
   
 app.use(cors());
-// connectDb()
+connectDb()
 
 
 
@@ -29,8 +29,8 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // Routes
-// app.use('/api/auth', authRoutes);
-// app.use('/api', articleRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api', articleRoutes);
 
 app.get('/', (req, res) => {
   res.send('Hey this is my API running 🥳')
