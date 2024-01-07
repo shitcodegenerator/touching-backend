@@ -5,7 +5,7 @@ const multer = require("multer");
 const stream = require("stream");
 
 const addArticle = async (req, res) => {
-  const { author, avatar, title, categoryId, type, content, image } = req.body;
+  const { author, avatar, title, summary, categoryId, type, content, image } = req.body;
 
   try {
     const newArticle = new Article({
@@ -16,6 +16,7 @@ const addArticle = async (req, res) => {
       categoryId,
       content,
       image,
+      summary
     });
 
     await newArticle.save();
@@ -69,7 +70,7 @@ const getArticleById = async (req, res) => {
 // Define the PUT route to edit an article by its ID
 const editArticle = async (req, res) => {
   const { articleId } = req.params; // Get the article ID from the URL
-  const { title, content } = req.body; // Get the updated title and content from the request body
+  const { title, content, categoryId, summary, type, image, author, avatar } = req.body; // Get the updated title and content from the request body
 
   try {
     // Find the article by its ID in the MongoDB collection
@@ -82,6 +83,13 @@ const editArticle = async (req, res) => {
     // Update the article properties
     article.title = title;
     article.content = content;
+    article.categoryId = categoryId;
+    article.summary = summary;
+    article.type = type;
+    article.image = image;
+    article.author = author;
+    article.avatar = avatar;
+    article.modified_at = new Date()
 
     // Save the updated article
     await article.save();

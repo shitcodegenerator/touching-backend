@@ -9,6 +9,7 @@ const ArticleSchema = new mongoose.Schema({
     },
     author: { type: String, required: true, unique: true },
     avatar: { type: String, required: true },
+    summary: { type: String, required: true, default: '' },
     title: { type: String, required: true },
     categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'category' }, // Reference to Category model
     type: { type: String, required: true },

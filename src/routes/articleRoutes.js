@@ -17,9 +17,9 @@ router.post('/article/category', articleController.addCategory);
 router.post('/uploadImage', upload.single('image'), articleController.uploadImage);
 
 // Define a route to edit an article by its ID
-router.put('/editArticle/:articleId', articleController.editArticle);
+router.put('/article/:articleId', articleController.editArticle);
 
 // Define a route to delete an article by its ID
-router.delete('/deleteArticle/:articleId', articleController.deleteArticle);
+router.delete('/article/:articleId', articleController.deleteArticle);
 
 module.exports = router;
