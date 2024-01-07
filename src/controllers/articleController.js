@@ -106,7 +106,7 @@ const deleteArticle = async (req, res) => {
     }
 
     // Delete the article
-    await article.remove();
+    await article.deleteOne({ id: articleId });
 
     res.status(200).json({ message: 'Article deleted successfully' });
   } catch (error) {
