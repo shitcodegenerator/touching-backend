@@ -220,7 +220,7 @@ const uploadImage = async ({file}, res) => {
 
 
       console.log(`SUCCESSFULLY UPLOADED: ${data.name} ${data.id}`);
-      return res.status(200).json({data: `https://drive.google.com/uc?id=${data.id}`})
+      return res.status(200).json({data: `https://lh3.googleusercontent.com/u/0/d/${data.id}`})
 
     } catch(err) {
       console.log(err)
