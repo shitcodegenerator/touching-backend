@@ -32,10 +32,11 @@ const getArticles = async (req, res) => {
   const page = parseInt(req.query.page) || 1; // Default page is 1
   const perPage = 10; // Number of articles per page
   const sort = req.query.sort ?? 1; // 1: asc 升冪 2: desc 降冪
+  const type = req.query.type ?? 'knowledge'; // 1: asc 升冪 2: desc 降冪
 
   try {
     // Retrieve articles from your MongoDB collection and apply pagination
-    const articles = await Article.find()
+    const articles = await Article.find({ type })
       .skip((page - 1) * perPage)
       .limit(perPage)
       .sort({ created_at: sort }); // Sort by created_at in descending order
