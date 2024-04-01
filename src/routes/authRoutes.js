@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const passport = require('passport')
 
 
 const authController = require('../controllers/authController');
@@ -13,7 +14,13 @@ router.post('/register', authController.register);
 router.post('/login', authController.login);
 
 // Define the getUserData route
-router.get('/getUserData', authenticate, authController.getUserData);
+router.get('/profile', authenticate, authController.getUserData);
+router.put('/profile/:id', authenticate, authController.editUserData);
+router.post('/password/forget', authController.sendEmail);
+router.post('/password/reset', authController.resetPassword);
+router.get('/google', passport.authenticate('google', {
+    scope: [ 'email', 'profile' ],
+  }));
 
 
 // Define the ADMIN registration route
