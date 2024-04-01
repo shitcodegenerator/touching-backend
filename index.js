@@ -3,14 +3,10 @@ const bodyParser = require('body-parser');
 const connectDb = require('./src/config.js')
 const cors = require('cors');
 const dotEnv = require('dotenv').config()
-const passport = require('passport');
 
-const session = require('express-session');
 const authRoutes = require('./src/routes/authRoutes.js'); 
 const articleRoutes = require('./src/routes/articleRoutes.js'); 
 const typeRoutes = require('./src/routes/typeRoutes.js'); 
-const authController = require('./src/controllers/authController.js')
-const User = require("./src/models/user.js");
 
 
 
@@ -28,14 +24,7 @@ const app = express()
 //   };
 app.use(cors());
 
-// app.use(session({
-//   resave: true,
-//   saveUninitialized: true,
-//   secret: 'SECRET' 
-// }));
-  
-// app.use(passport.initialize());
-// app.use(passport.session());
+
 
 connectDb()
 
@@ -71,10 +60,6 @@ app.use('/api', typeRoutes);
 app.get('/', (req, res) => {
   res.send('Hey this is my API running 🥳')
 })
-
-
-
-
 
 
 app.listen(PORT, () => {
