@@ -8,8 +8,6 @@ const authRoutes = require('./src/routes/authRoutes.js');
 const articleRoutes = require('./src/routes/articleRoutes.js'); 
 
 
-
-
 const PORT = 3006
 
 const app = express()
