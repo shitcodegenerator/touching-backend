@@ -58,7 +58,7 @@ const lineLoginHandler = async(reqBody, res) => {
     code: reqBody.code,
     client_id: 2004045021,
     client_secret: "076a9cddc12b1ea0e7fe0bc2a1de7281",
-    redirect_uri: "https://touching-qat.vercel.app/login/callback/login/callback",
+    redirect_uri: "https://touching-qat.vercel.app/login/callback",
   };
 
   axios.defaults.headers.post["Content-Type"] = "application/x-www-form-urlencoded"
