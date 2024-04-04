@@ -187,7 +187,6 @@ const googleLoginHandler = async(code, res) => {
 
   axios.defaults.headers.post["Content-Type"] = "application/x-www-form-urlencoded"
   try {
-    console.log(code)
     const googleRes = await axios.post(`https://oauth2.googleapis.com/tokeninfo?id_token=${code}`);
 
 
@@ -230,7 +229,7 @@ const googleLoginHandler = async(code, res) => {
 
     return res.status(200).json({ data: false, message: "註冊成功", token  });
   } catch(err) {
-    // console.log('err', err)
+    console.log('GoogleError', err)
     return res.status(400).json({data: false, message: '註冊失敗，請再試一次。'})
   }
 }
