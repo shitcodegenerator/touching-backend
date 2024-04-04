@@ -6,6 +6,7 @@ const dotEnv = require('dotenv').config()
 
 const authRoutes = require('./src/routes/authRoutes.js'); 
 const articleRoutes = require('./src/routes/articleRoutes.js'); 
+const typeRoutes = require('./src/routes/typeRoutes.js'); 
 
 
 const PORT = 3006
@@ -53,6 +54,7 @@ app.use(bodyParser.json());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api', articleRoutes);
+app.use('/api', typeRoutes);
 
 app.get('/', (req, res) => {
   res.send('Hey this is my API running 🥳')
