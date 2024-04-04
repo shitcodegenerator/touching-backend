@@ -1,4 +1,4 @@
-const Type = require("../models/Type.js");
+const Type = require("../models/type");
 
 const getTypes = async (req, res) => {
 

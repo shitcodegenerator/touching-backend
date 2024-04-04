@@ -12,16 +12,19 @@ const typeRoutes = require('./src/routes/typeRoutes.js');
 const PORT = 3006
 
 const app = express()
-// const corsOptions = {
-//     origin: [
-//       'http://localhost:8888',
-//       'http://localhost:5173',
-//       'https://touching-dev.com/',
-// ],
-//     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-//     allowedHeaders: ['Content-Type', 'Authorization'],
-//   };
-app.use(cors());
+const corsOptions = {
+    origin: [
+      'http://localhost:8888',
+      'http://localhost:5173',
+      'https://touching-dev.com/',
+      'https://touching-dev.com',
+      'https://touching-qat.vercel.app/',
+      'https://touching-qat.vercel.app',
+],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  };
+app.use(cors(corsOptions));
 
 
 
