@@ -187,7 +187,7 @@ const googleLoginHandler = async(code, res) => {
 
   axios.defaults.headers.post["Content-Type"] = "application/x-www-form-urlencoded"
   try {
-    const googleRes = await axios.post(`https://oauth2.googleapis.com/tokeninfo?id_token=${code}`);
+    const googleRes = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${code}`);
 
 
     const userId = googleRes.data.sub;
