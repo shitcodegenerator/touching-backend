@@ -60,7 +60,7 @@ const login = async (req, res) => {
 
     if (passwordMatch) {
       // Passwords match, generate JWT token
-      const token = jwt.sign({ username: user.username, userId: user._id }, process.env.ADMIN_KEY, { expiresIn: '1h' });
+      const token = jwt.sign({ username: user.username, userId: user._id }, process.env.ADMIN_KEY, { expiresIn: '7d' });
 
       // Return the token along with a success message and user information
       res.status(200).json({

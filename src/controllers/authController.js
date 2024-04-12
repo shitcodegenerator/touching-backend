@@ -40,7 +40,7 @@ const register = async (req, res) => {
     const token = jwt.sign(
       { username, userId: newUser._id },
       process.env.AUTH_KEY,
-      { expiresIn: "1h" }
+      { expiresIn: "7d" }
     );
 
     return res.status(200).json({ data: newUser, token });
@@ -84,7 +84,7 @@ const lineLoginHandler = async(reqBody, res) => {
       const token = jwt.sign(
         { username: userDetail.email, userId: existingUser._id },
         process.env.AUTH_KEY,
-        { expiresIn: "1h" }
+        { expiresIn: "7d" }
       );
 
       return res
@@ -108,7 +108,7 @@ const lineLoginHandler = async(reqBody, res) => {
       const token = jwt.sign(
         { username: userDetail.email, userId: newUser._id },
         process.env.AUTH_KEY,
-        { expiresIn: "1h" }
+        { expiresIn: "7d" }
       );
   
       return res.status(200).json({ data: false, message: "註冊成功", token  });
@@ -148,7 +148,7 @@ const ggg = async(data, done) => {
       const token = jwt.sign(
         { username: existingUser.email, userId: existingUser._id },
         process.env.AUTH_KEY,
-        { expiresIn: "1h" }
+        { expiresIn: "7d" }
       );
       
       
@@ -173,7 +173,7 @@ const ggg = async(data, done) => {
     const token = jwt.sign(
       { username: udata._json.email, userId: data.id },
       process.env.AUTH_KEY,
-      { expiresIn: "1h" }
+      { expiresIn: "7d" }
     );
 
     return done(null,{ data: false, message: "註冊成功", token  })
@@ -201,7 +201,7 @@ const googleLoginHandler = async(code, res) => {
       const token = jwt.sign(
         { username: userDetail.email, userId: existingUser._id },
         process.env.AUTH_KEY,
-        { expiresIn: "1h" }
+        { expiresIn: "7d" }
       );
       console.log(token)
       return res
@@ -224,7 +224,7 @@ const googleLoginHandler = async(code, res) => {
     const token = jwt.sign(
       { username: userDetail.email, userId: newUser._id },
       process.env.AUTH_KEY,
-      { expiresIn: "1h" }
+      { expiresIn: "7d" }
     );
 
     return res.status(200).json({ data: false, message: "註冊成功", token  });
@@ -247,7 +247,7 @@ const fbLoginHandler = async(reqBody, res) => {
       const token = jwt.sign(
         { username: email, userId: existingUser._id },
         process.env.AUTH_KEY,
-        { expiresIn: "1h" }
+        { expiresIn: "7d" }
       );
       console.log(token)
       return res
@@ -283,7 +283,7 @@ const fbLoginHandler = async(reqBody, res) => {
     const token = jwt.sign(
       { username: email, userId: newUser._id, secret: '0b27092017f83216a025b5d3a897ffa4' }, // 應用程式密鑰
       process.env.AUTH_KEY,
-      { expiresIn: "1h" }
+      { expiresIn: "7d" }
     );
 
     return res.status(200).json({ data: false, message: "註冊成功", token  });
@@ -323,7 +323,7 @@ const login = async (req, res) => {
      const token = jwt.sign(
       { username: req.body.username, userId: hasAccount._id },
       process.env.AUTH_KEY,
-      { expiresIn: "1h" }
+      { expiresIn: "7d" }
     );
     return res
       .status(200)
@@ -391,7 +391,7 @@ const sendEmail = async (req, res) => {
 
   await transporter.verify();
 
-  const token = crypto.randomBytes(20).toString('hex');
+  const token = crypto.randomBytes(6).toString('hex').substring(0,5);
 
   user.resetToken = token;
   user.resetExpiration = Date.now() + 3600000
