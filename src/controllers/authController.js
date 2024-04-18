@@ -236,7 +236,7 @@ const googleLoginHandler = async(code, res) => {
 
 const fbLoginHandler = async(reqBody, res) => {
 
-  const { code, name, email } = reqBody
+  const { code, name, email, avatar } = reqBody
 
   axios.defaults.headers.post["Content-Type"] = "application/x-www-form-urlencoded"
 
@@ -271,8 +271,10 @@ const fbLoginHandler = async(reqBody, res) => {
     // 找不到會員？註冊
     const newUser = new User({
       facebook_id: code,
+      facebook_name: name,
       name,
       email,
+      avatar,
       username: email
     });
 

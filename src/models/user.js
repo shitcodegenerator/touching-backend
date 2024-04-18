@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const UserSchema = new mongoose.Schema({
     google_id: { type: String,  default: '' },
     facebook_id: { type: String, default: '' },
+    facebook_name: { type: String, default: '' },
     email: { type: String, default: '' },
     line_id: { type: String, default: '' },
     password: { type: String, default: '' },
