@@ -18,6 +18,7 @@ router.get('/profile', authenticate, authController.getUserData);
 router.put('/profile/:id', authenticate, authController.editUserData);
 router.post('/password/forget', authController.sendEmail);
 router.post('/password/reset', authController.resetPassword);
+router.post('/line/check', authController.lineFriendCheck);
 router.get('/google', passport.authenticate('google', {
     scope: [ 'email', 'profile' ],
   }));

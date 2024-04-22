@@ -22,6 +22,7 @@ const UserSchema = new mongoose.Schema({
     resetToken: { type: String, default: '' },
     resetExpiration: { type: Number, default: 0 },
     isConsent: { type: Boolean, default: null },
+    isLineFriend: { type: Boolean, default: null },
     email: { type: String, default: '' },
   });
 

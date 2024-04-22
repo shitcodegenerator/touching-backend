@@ -50,6 +50,30 @@ const register = async (req, res) => {
   }
 };
 
+const lineFriendCheck = async (req, res) => {
+ try {
+  const { code, uri: redirect_uri } = req.body
+  const data = {
+    grant_type: "authorization_code",
+    code: code,
+    client_id: 2004045021,
+    client_secret: "076a9cddc12b1ea0e7fe0bc2a1de7281",
+    redirect_uri
+  };
+
+  axios.defaults.headers.post["Content-Type"] = "application/x-www-form-urlencoded"
+  const lineRes = await axios.post("https://api.line.me/oauth2/v2.1/token", data);
+  axios.defaults.headers[
+    "Authorization"
+  ] = `Bearer ${lineRes.data.access_token}`;
+  const friendRes =  await axios.get('https://api.line.me/friendship/v1/status')
+  
+  return res.status(200).json({ data: friendRes.data.friendFlag, message: 'LINE查詢成功' });
+ } catch (e) {
+  return res.status(400).json({ data: false, message: 'LINE查詢失敗' });
+ }
+}
+
 
 
 const lineLoginHandler = async(reqBody, res) => {
@@ -449,5 +473,6 @@ module.exports = {
   sendEmail,
   resetPassword,
   editUserData,
-  ggg
+  ggg,
+  lineFriendCheck
 };
