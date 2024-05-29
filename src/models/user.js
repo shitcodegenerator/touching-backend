@@ -24,6 +24,12 @@ const UserSchema = new mongoose.Schema({
     isConsent: { type: Boolean, default: null },
     isLineFriend: { type: Boolean, default: null },
     email: { type: String, default: '' },
+    visits: [{
+      title: { type: String, default: '' },
+      url: { type: String, default: '' },
+      date: { type: String, default: '' },
+      duration: { type: Number, default: 0 }, // Duration in seconds
+    }]
   });
 
   module.exports = User = mongoose.model("member", UserSchema);

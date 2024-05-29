@@ -4,6 +4,7 @@ const User = require("../models/user.js");
 const axios = require("axios");
 const nodemailer = require("nodemailer");
 const crypto = require('crypto');
+const emailHint = require("../email/subscribealert.js");
 
 function generateResetPasswordToken() {
   return new Promise((resolve, reject) => {
@@ -395,6 +396,47 @@ const editUserData = async (req, res) => {
   }
 };
 
+const sendHintEmail = async (req, res) => {
+  const user = await User.findOne({ email: req.body.email })
+  console.log(req.body.email)
+
+  if (!user || !req.body.email) {
+    return res.status(200).json({ data: false, message: '查無此用戶信箱' });
+  }
+  // if (user.line_id || user.google_id || user.facebook_id) {
+  //   return res.status(200).json({ data: false, message: '請使用第三方平台帳號登入' });
+  // }
+  
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'touchingdevelopment.service@gmail.com',
+      pass: 'fkzibwzpzgzbedpj',
+    },
+  });
+
+  await transporter.verify();
+
+
+  const mailOptions = {
+    from: '踏取國際開發有限公司 <touchingdevelopment.service@gmail.com>',
+    to: req.body.email,
+    subject: `【踏取會員通知】不動產月刊-本期發布日將近，您還差最後２步驟就可免費領取！`,
+    html: emailHint(req.body.email)
+  };
+
+
+  transporter.sendMail(mailOptions, (err, info) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send({ data: false, message: '發送失敗' });
+    } else {
+      console.log(info);
+      res.status(200).json({data: true, message: '成功發送信件'})
+    }
+  });
+}
+
 
 const sendEmail = async (req, res) => {
   const user = await User.findOne({ email: req.body.email })
@@ -474,5 +516,6 @@ module.exports = {
   resetPassword,
   editUserData,
   ggg,
-  lineFriendCheck
+  lineFriendCheck,
+  sendHintEmail
 };

@@ -6,6 +6,7 @@ const dotEnv = require('dotenv').config()
 
 const authRoutes = require('./src/routes/authRoutes.js'); 
 const articleRoutes = require('./src/routes/articleRoutes.js'); 
+const actionRoutes = require('./src/routes/actionRoutes.js'); 
 const typeRoutes = require('./src/routes/typeRoutes.js'); 
 
 
@@ -56,6 +57,7 @@ app.use(bodyParser.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', actionRoutes);
 app.use('/api', articleRoutes);
 app.use('/api', typeRoutes);
 
