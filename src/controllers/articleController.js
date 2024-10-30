@@ -30,7 +30,7 @@ const addArticle = async (req, res) => {
 
 const getArticles = async (req, res) => {
   const page = parseInt(req.query.page) || 1; // Default page is 1
-  const perPage = 10; // Number of articles per page
+  const perPage = req.query.pageSize ? parseInt(req.query.pageSize) : 15; // Number of articles per page
   const sort = req.query.sort ?? 1; // 1: asc 升冪 2: desc 降冪
   const type = req.query.type ?? 'knowledge'; // 1: asc 升冪 2: desc 降冪
 

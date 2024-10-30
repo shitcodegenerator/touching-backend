@@ -5,6 +5,7 @@ const axios = require("axios");
 const nodemailer = require("nodemailer");
 const crypto = require('crypto');
 const emailHint = require("../email/subscribealert.js");
+const promoteHint = require("../email/promote.js");
 
 function generateResetPasswordToken() {
   return new Promise((resolve, reject) => {
@@ -421,7 +422,7 @@ const sendHintEmail = async (req, res) => {
   const mailOptions = {
     from: '踏取國際開發有限公司 <touchingdevelopment.service@gmail.com>',
     to: req.body.email,
-    subject: `【踏取會員通知】不動產月刊-本期發布日將近，您還差最後２步驟就可免費領取！`,
+    subject: `【踏取會員通知】不動產分析報告發布囉！專業不動產數據、經濟與房市指標一應俱全！`,
     html: emailHint(req.body.email)
   };
 
@@ -436,6 +437,48 @@ const sendHintEmail = async (req, res) => {
     }
   });
 }
+
+const sendFBEmail = async (req, res) => {
+  const user = await User.findOne({ email: req.body.email })
+  console.log(req.body.email)
+
+  // if (!user || !req.body.email) {
+  //   return res.status(200).json({ data: false, message: '查無此用戶信箱' });
+  // }
+  // if (user.line_id || user.google_id || user.facebook_id) {
+  //   return res.status(200).json({ data: false, message: '請使用第三方平台帳號登入' });
+  // }
+  
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'touchingdevelopment.service@gmail.com',
+      pass: 'fkzibwzpzgzbedpj',
+    },
+  });
+
+  await transporter.verify();
+
+
+  const mailOptions = {
+    from: '踏取國際開發有限公司 <touchingdevelopment.service@gmail.com>',
+    to: req.body.email,
+    subject: `【踏取國際開發】感謝您的申請！開信馬上領取【2024不動產分析報告】`,
+    html: promoteHint(req.body.email)
+  };
+
+
+  transporter.sendMail(mailOptions, (err, info) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send({ data: false, message: '發送失敗' });
+    } else {
+      console.log(info);
+      res.status(200).json({data: true, message: '成功發送信件'})
+    }
+  });
+}
+
 
 
 const sendEmail = async (req, res) => {
@@ -508,6 +551,27 @@ const resetPassword = async (req, res) => {
 
 }
 
+
+const sendNow = async () => {
+  return
+  [
+  // 'Searchertw@gmail.com',
+  // 'lsz42o@yahoo.com.tw',
+  // 'buty61@gmail.com'
+// 'paul121694@hotmail.com.tw'
+// 'gtofan04@yahoo.com.tw'
+// 'hsuryo@hotmail.com'
+// 'W151769@hotmail.com'
+// 'vincent02190@yahoo.com.tw',
+// 'm149131@yahoo.com.tw'
+  ].forEach(async(i) => {
+    await sendFBEmail({body:{email: i}})
+  })
+
+
+}
+
+// sendNow()
 module.exports = {
   register,
   login,
