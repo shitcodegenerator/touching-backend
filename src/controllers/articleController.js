@@ -3,6 +3,7 @@ const Category = require("../models/category.js");
 const { google } = require("googleapis");
 const multer = require("multer");
 const stream = require("stream");
+const  mongoose = require("mongoose");
 
 const addArticle = async (req, res) => {
   const { author, avatar, title, summary, categoryId, type, content, image } = req.body;
@@ -30,18 +31,31 @@ const addArticle = async (req, res) => {
 
 const getArticles = async (req, res) => {
   const page = parseInt(req.query.page) || 1; // Default page is 1
-  const perPage = req.query.pageSize ? parseInt(req.query.pageSize) : 30; // Number of articles per page
-  const sort = req.query.sort ?? 1; // 1: asc 升冪 2: desc 降冪
-  const type = req.query.type ?? 'knowledge'; // 1: asc 升冪 2: desc 降冪
+  const perPage = req.query.pageSize ? parseInt(req.query.pageSize) : 30; // Default page size is 30
+  const sort = req.query.sort === '-1' ? -1 : 1; // Sort order: 1 (asc) or -1 (desc)
+  const type = req.query.type ?? 'knowledge'; // Default type
+  const categoryIds = req.query.categoryId; // May be a string or array
+
+  // Initialize query object
+  const query = { type };
+
+  // Handle multiple categoryId filters
+  if (categoryIds) {
+    const categoryArray = Array.isArray(categoryIds) ? categoryIds : [categoryIds];
+    query.categoryId = {
+      $in: categoryArray.map((id) => new mongoose.Types.ObjectId(id)), // Convert to ObjectId
+    };
+  }
 
   try {
-    // Retrieve articles from your MongoDB collection and apply pagination
-    const articles = await Article.find({ type })
+    // Query articles from MongoDB with pagination and sorting
+    const articles = await Article.find(query)
       .skip((page - 1) * perPage)
       .limit(perPage)
-      .sort({ created_at: sort }); // Sort by created_at in descending order
+      .sort({ created_at: sort });
 
-    const totalArticles = await Article.countDocuments();
+    // Count total articles for the query
+    const totalArticles = await Article.countDocuments(query);
 
     res.status(200).json({ data: articles, total: totalArticles });
   } catch (error) {
@@ -49,6 +63,7 @@ const getArticles = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 
 const getArticleById = async (req, res) => {
   const { articleId } = req.params;

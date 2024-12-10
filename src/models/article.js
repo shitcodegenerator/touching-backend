@@ -7,7 +7,7 @@ const ArticleSchema = new mongoose.Schema({
       default: uuidv4, // Generate a UUID when a new article is created
       unique: true, // Ensure uniqueness of the UUID
     },
-    author: { type: String, required: true },
+    author: { type: String, required: true, unique: false },
     avatar: { type: String, required: true },
     summary: { type: String, required: true, default: '' },
     title: { type: String, required: true },
