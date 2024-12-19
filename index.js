@@ -8,6 +8,7 @@ const authRoutes = require('./src/routes/authRoutes.js');
 const articleRoutes = require('./src/routes/articleRoutes.js'); 
 const actionRoutes = require('./src/routes/actionRoutes.js'); 
 const typeRoutes = require('./src/routes/typeRoutes.js'); 
+const questionRoutes = require('./src/routes/questionRoutes.js'); 
 
 
 const PORT = 3006
@@ -59,6 +60,7 @@ app.use(bodyParser.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', actionRoutes);
 app.use('/api', articleRoutes);
+app.use('/api', questionRoutes);
 app.use('/api', typeRoutes);
 
 app.get('/', (req, res) => {
