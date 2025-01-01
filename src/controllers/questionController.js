@@ -11,6 +11,9 @@ const createQuestion = async (req, res) => {
       return res.status(400).json({ data: false, message: '請選擇類型並輸入內容' });
     }
 
+    if(content.length > 400) {
+      return res.status(400).json({ data: false, message: '內容不得超過400字' });
+    }
     // 檢查會員當天發問次數
     const todayStart = dayjs().startOf('day').toDate();
     const todayEnd = dayjs().endOf('day').toDate();
@@ -19,7 +22,7 @@ const createQuestion = async (req, res) => {
       created_at: { $gte: todayStart, $lte: todayEnd },
     });
 
-    if (questionCount >= 3) {
+    if (questionCount >= 5) {
       return res.status(400).json({ data: false, message: '不好意思，您已超過本日發問次數，如果有較豐富的問題需詢問，歡迎洽詢LINE官方帳號預約諮詢。' });
     }
 
@@ -34,7 +37,7 @@ const createQuestion = async (req, res) => {
     res.status(201).json({data: true,  message: '新增成功' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({data: false,  error: 'Server error.' });
+    res.status(500).json({data: false,  error: '伺服器錯誤，請聯繫網站管理員。' });
   }
 };
 
