@@ -10,7 +10,7 @@ const QuestionSchema = new mongoose.Schema({
     content: { type: String, default: '' }, // 管理員回應內容
     response_at: { type: Date, default: null }, // 回應時間
   },
-  displayName:{ type: String, default: null }
+  displayName:{ type: String, default: '' }
 });
 
 module.exports = Question = mongoose.model("question", QuestionSchema);
