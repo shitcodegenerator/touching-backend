@@ -103,8 +103,51 @@ const getIndicatorByIndex = async (req, res) => {
     res.status(500).json({ message: 'Internal Server Error' });
   }
 };
+
+const getFormattedIndicators = async (req, res) => {
+    try {
+      const data = await Indicator.find({}).lean();
+  
+      // 1. 依 index 分組
+      const grouped = {};
+      data.forEach(item => {
+        const { index, label, date, value } = item;
+        if (!grouped[index]) {
+          grouped[index] = {
+            key: label,
+            valuesByDate: {}
+          };
+        }
+        grouped[index].valuesByDate[date] = value;
+      });
+  
+      // 2. 將每組資料轉為 { key, value: [...] } 格式
+      const result = Object.values(grouped).map(group => {
+        const sortedDates = Object.keys(group.valuesByDate)
+          .sort((a, b) => {
+            // 比較年月順序：'113/2' → 113*12 + 2
+            const [ya, ma] = a.split('/').map(Number);
+            const [yb, mb] = b.split('/').map(Number);
+            return ya * 12 + ma - (yb * 12 + mb);
+          });
+  
+        const values = sortedDates.map(date => group.valuesByDate[date]);
+  
+        return {
+          key: group.key,
+          value: values
+        };
+      });
+  
+      res.status(200).json(result);
+  
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  };
+
 const getAllIndicators = async (req, res) => {
-    console.log('✅getAllIndicators')
     try {
       const data = await Indicator.find({});
   
@@ -172,5 +215,6 @@ module.exports = {
   getIndicatorByIndex,
   getIndicatorsByIndexes,
   getAllIndicators,
-  seedExchangeRates
+  seedExchangeRates,
+  getFormattedIndicators
 };
