@@ -4,12 +4,32 @@ const { google } = require("googleapis");
 const multer = require("multer");
 const stream = require("stream");
 const  mongoose = require("mongoose");
+let translate;
+(async () => {
+  const module = await import('@vitalets/google-translate-api');
+  translate = module.default;
+})();
 
 const addArticle = async (req, res) => {
   const { author, avatar, title, summary, categoryId, type, content, image } = req.body;
 
   try {
+    console.log(translate)
+    // 1. 翻譯 title
+    if (!translate) {
+      const module = await import('@vitalets/google-translate-api');
+      translate = module.default;
+    }
+    const translation = await translate.translate(title, { to: 'en' });
+    let translatedTitle = translation.text;
+    // 2. 去除標點符號，只保留字母和空格
+    translatedTitle = translatedTitle.replace(/[^a-zA-Z\s]/g, '');
+    // 3. 用 '-' 連接單字，且只取前七個單字
+    const words = translatedTitle.trim().split(/\s+/).slice(0, 7);
+    const id = words.join('-').toLowerCase();
+
     const newArticle = new Article({
+      _id: id,
       author,
       avatar,
       title,

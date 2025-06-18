@@ -3,12 +3,15 @@ const bodyParser = require('body-parser');
 const connectDb = require('./src/config.js')
 const cors = require('cors');
 const dotEnv = require('dotenv').config()
-
+const { seedExchangeRates } = require('./src/controllers/indicatorController.js');
 const authRoutes = require('./src/routes/authRoutes.js'); 
 const articleRoutes = require('./src/routes/articleRoutes.js'); 
 const actionRoutes = require('./src/routes/actionRoutes.js'); 
 const typeRoutes = require('./src/routes/typeRoutes.js'); 
 const questionRoutes = require('./src/routes/questionRoutes.js'); 
+const indicatorRoutes = require('./src/routes/indicatorRoutes.js');
+
+
 
 
 const PORT = 3006
@@ -62,10 +65,12 @@ app.use('/api/auth', actionRoutes);
 app.use('/api', articleRoutes);
 app.use('/api', questionRoutes);
 app.use('/api', typeRoutes);
-
+app.use('/api', indicatorRoutes);
 app.get('/', (req, res) => {
   res.send('Hey this is my API running 🥳')
 })
+
+// seedExchangeRates().then(() => process.exit())
 
 
 app.listen(PORT, () => {
