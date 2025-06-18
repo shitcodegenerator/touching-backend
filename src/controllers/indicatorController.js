@@ -111,10 +111,10 @@ const getFormattedIndicators = async (req, res) => {
       // 1. 依 index 分組
       const grouped = {};
       data.forEach(item => {
-        const { index, label, date, value } = item;
+        const { index,  date, value } = item;
         if (!grouped[index]) {
           grouped[index] = {
-            key: label,
+            key: getIndicatorLabel(index),
             valuesByDate: {}
           };
         }
