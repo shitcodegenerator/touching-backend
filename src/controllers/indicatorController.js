@@ -56,6 +56,7 @@ const getIndicatorLabel = (index) => {
       20: "新北市40-50年宅",
       21: "新北市50年以上宅",
       22: "新北市50年以上宅",
+      23: "未來半年購買耐久財貨時機(指數)",
     };
   
     return labels[index] || `未知指標（Index: ${index}）`;
