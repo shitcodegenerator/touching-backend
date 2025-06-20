@@ -70,7 +70,7 @@ app.get('/', (req, res) => {
   res.send('Hey this is my API running 🥳')
 })
 
-// seedExchangeRates().then(() => process.exit())
+// seedExchangeRates()
 
 
 app.listen(PORT, () => {

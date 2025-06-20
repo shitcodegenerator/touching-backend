@@ -1,35 +1,27 @@
 // src/controllers/indicatorController.js
 const Indicator = require('../models/indicator');
 async function seedExchangeRates() {
-    const values = [
-        27, 29, 31,
-        35, 35, 38,
-        35, 39, 34,
-        32, 34, 38,
-        35, 37, 35,
-        33
-      ];
-    
-      const dates = [];
-      for (let y = 113; y <= 114; y++) {
-        for (let m = 1; m <= 12; m++) {
-          if (dates.length >= values.length) break;
-          dates.push(`${y}/${m}`);
-        }
-      }
-    
-      for (let i = 0; i < values.length; i++) {
-        const date = dates[i];
-        const value = values[i];
-    
-        await Indicator.findOneAndUpdate(
-          { index: 15, date },
-          { value },
-          { upsert: true, new: true }
-        );
-      }
-    
-      console.log('✅ 景氣燈號資料已成功寫入 (16 筆)');
+  const values = [
+    2869, 3579, 3735,
+    3803, 4816, null,
+    null, null, null,
+    null, null, null
+  ];
+
+  const dates = Array.from({ length: 12 }, (_, i) => `114/${i + 1}`);
+
+  for (let i = 0; i < values.length; i++) {
+    const date = dates[i];
+    const value = values[i];
+
+    await Indicator.findOneAndUpdate(
+      { index: 27, date },
+      { value },
+      { upsert: true, new: true }
+    );
+  }
+
+  console.log('✅ 台北市第一次移轉棟數(本期）（index: 27）資料已寫入');
   }
 
 const getIndicatorLabel = (index) => {
@@ -57,6 +49,14 @@ const getIndicatorLabel = (index) => {
       21: "新北市50年以上宅",
       22: "新北市50年以上宅",
       23: "未來半年購買耐久財貨時機(指數)",
+      24: "台北市買賣移轉棟數",
+      25: "台北市買賣移轉棟數(本期)",
+      26: "台北市第一次移轉棟數",
+      26: "台北市第一次移轉棟數(本期)",
+      27: "新北市買賣移轉棟數",
+      28: "新北市買賣移轉棟數(本期)",
+      29: "新北市第一次移轉棟數",
+      30: "新北市第一次移轉棟數(本期)",
     };
   
     return labels[index] || `未知指標（Index: ${index}）`;
