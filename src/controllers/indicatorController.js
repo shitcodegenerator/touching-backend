@@ -2,7 +2,7 @@
 const Indicator = require('../models/indicator');
 
 const clearIndicatorValues = async (req, res) => {
-  const indexes = [ ];
+  const indexes = [38];
 
   if (!Array.isArray(indexes)) {
     console.log('indexes must be an array')
@@ -24,10 +24,10 @@ const clearIndicatorValues = async (req, res) => {
 
 async function seedTaipeiCityPrice() {
   const values = [
-    1604,
-    1851,
-    2401,
-    2123,
+    1211,
+    2073,
+    854,
+    3868,
     null,
     null,
     null,
@@ -45,30 +45,29 @@ async function seedTaipeiCityPrice() {
     const value = values[i];
 
     await Indicator.findOneAndUpdate(
-      { index: 25, date },
+      { index: 34, date },
       { value },
       { upsert: true, new: true }
     );
   }
 
-  console.log('✅ 台北市買賣移轉棟數(本期）（index: 25）資料已寫入');
+  console.log('✅ 新北市第一次移轉棟數(本期）（index: 34）資料已寫入');
 }
 async function seedExchangeRates() {
-  return
+return
   const values = [
-    392,
-    263,
-    436,
-    764,
-    411,
-    705,
-    507,
-    344,
-    586,
-    346,
-    232,
-    338,
-    337,	419,	163
+    194,
+    226,
+    319,
+    483,
+    154,
+    163,
+    241,
+    230,
+    122,
+    333,
+    325,
+    244,
   ];
 
   const dates = [];
@@ -79,19 +78,24 @@ async function seedExchangeRates() {
     }
   }
 
+  const counties = [
+    '松山',	'信義',	'大安',	'中山',	'中正',	'大同',	'萬華',	'文山',	'南港',	'內湖',	'士林',	'北投'
+  ]
+
   for (let i = 0; i < values.length; i++) {
     const date = dates[i];
     const value = values[i];
-
+    const county = counties[i];
+    console.log(date, value, county)
     await Indicator.findOneAndUpdate(
-      { index:28, date },
+      { index:38, date: county },
       { value },
       { upsert: true, new: true }
     );
   }
 
     
-      console.log('✅ 台北市成交量（ index: 28）已寫入完畢');
+      console.log('✅ 台北市各區去年同月買賣移轉棟數 index: 38）已寫入完畢');
   }
 
 const getIndicatorLabel = (index) => {
@@ -123,6 +127,7 @@ const getIndicatorLabel = (index) => {
       25: "台北市買賣移轉棟數(本期)",
       26: "台北市第一次移轉棟數",
       27: "台北市第一次移轉棟數(本期)",
+
       28: "台北市成交量(筆)",
       29: "台北市單坪均價(萬)",
       30: "台北市成交均價(萬)",
@@ -134,6 +139,15 @@ const getIndicatorLabel = (index) => {
       35: "新北市成交量(筆)",
       36: "新北市單坪均價(萬)",
       37: "新北市成交均價(萬)",
+
+      38: "台北市各區去年同月買賣移轉棟數",
+      39: "台北市各區今年上月買賣移轉棟數",
+      40: "台北市各區今年當月買賣移轉棟數",
+
+      41: "新北市各區去年同月買賣移轉棟數",
+      42: "新北市各區今年上月買賣移轉棟數",
+      43: "新北市各區今年當月買賣移轉棟數",
+
     };
   
     return labels[index] || `未知指標（Index: ${index}）`;
