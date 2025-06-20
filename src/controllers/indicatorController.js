@@ -1,10 +1,41 @@
 // src/controllers/indicatorController.js
 const Indicator = require('../models/indicator');
 
-async function seedExchangeRates() {
+const clearIndicatorValues = async (req, res) => {
+  const indexes = [ ];
 
+  if (!Array.isArray(indexes)) {
+    console.log('indexes must be an array')
+    // return res.status(400).json({ message: 'indexes must be an array' });
+  }
+
+  try {
+    const result = await Indicator.deleteMany({ index: { $in: indexes } });
+    console.log('✅ 已刪除');
+    // res.status(200).json({
+    //   message: `已成功刪除 ${result.deletedCount} 筆資料`,
+    //   deletedIndexes: indexes
+    // });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
+async function seedTaipeiCityPrice() {
   const values = [
-    3971, 4159, 4291, 4123, 4524, 4481, 4292, 4689, 4538, 4783, 4640, 4727, 4337, 4116, 4345
+    1604,
+    1851,
+    2401,
+    2123,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
   ];
 
   const dates = Array.from({ length: 12 }, (_, i) => `114/${i + 1}`);
@@ -14,13 +45,53 @@ async function seedExchangeRates() {
     const value = values[i];
 
     await Indicator.findOneAndUpdate(
-      { index: 30, date },
+      { index: 25, date },
       { value },
       { upsert: true, new: true }
     );
   }
 
-  console.log('✅ 台北市單坪均價');
+  console.log('✅ 台北市買賣移轉棟數(本期）（index: 25）資料已寫入');
+}
+async function seedExchangeRates() {
+  return
+  const values = [
+    392,
+    263,
+    436,
+    764,
+    411,
+    705,
+    507,
+    344,
+    586,
+    346,
+    232,
+    338,
+    337,	419,	163
+  ];
+
+  const dates = [];
+  for (let y = 113; y <= 114; y++) {
+    for (let m = 1; m <= 12; m++) {
+      if (dates.length >= values.length) break;
+      dates.push(`${y}/${m}`);
+    }
+  }
+
+  for (let i = 0; i < values.length; i++) {
+    const date = dates[i];
+    const value = values[i];
+
+    await Indicator.findOneAndUpdate(
+      { index:28, date },
+      { value },
+      { upsert: true, new: true }
+    );
+  }
+
+    
+      console.log('✅ 台北市成交量（ index: 28）已寫入完畢');
   }
 
 const getIndicatorLabel = (index) => {
@@ -54,7 +125,15 @@ const getIndicatorLabel = (index) => {
       27: "台北市第一次移轉棟數(本期)",
       28: "台北市成交量(筆)",
       29: "台北市單坪均價(萬)",
-      30: "台北市成交均價(萬)"
+      30: "台北市成交均價(萬)",
+
+      31: "新北市買賣移轉棟數",
+      32: "新北市買賣移轉棟數(本期)",
+      33: "新北市第一次移轉棟數",
+      34: "新北市第一次移轉棟數(本期)",
+      35: "新北市成交量(筆)",
+      36: "新北市單坪均價(萬)",
+      37: "新北市成交均價(萬)",
     };
   
     return labels[index] || `未知指標（Index: ${index}）`;
@@ -215,5 +294,6 @@ module.exports = {
   getIndicatorsByIndexes,
   getAllIndicators,
   seedExchangeRates,
-  getFormattedIndicators
+  getFormattedIndicators,
+  clearIndicatorValues
 };

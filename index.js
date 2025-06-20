@@ -3,7 +3,7 @@ const bodyParser = require('body-parser');
 const connectDb = require('./src/config.js')
 const cors = require('cors');
 const dotEnv = require('dotenv').config()
-const { seedExchangeRates } = require('./src/controllers/indicatorController.js');
+const { seedExchangeRates, clearIndicatorValues } = require('./src/controllers/indicatorController.js');
 const authRoutes = require('./src/routes/authRoutes.js'); 
 const articleRoutes = require('./src/routes/articleRoutes.js'); 
 const actionRoutes = require('./src/routes/actionRoutes.js'); 
@@ -70,7 +70,10 @@ app.get('/', (req, res) => {
   res.send('Hey this is my API running 🥳')
 })
 
-// seedExchangeRates()
+seedExchangeRates()
+
+// clearIndicatorValues()
+
 
 
 app.listen(PORT, () => {
