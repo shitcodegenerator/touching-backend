@@ -23,10 +23,7 @@ const clearIndicatorValues = async (indexes) => {
 
 async function seedTaipeiCityPrice() {
   const values = [
-    1211,
-    2073,
-    854,
-    3868,
+    12028,	5348,	14240,	12115,
     null,
     null,
     null,
@@ -44,16 +41,17 @@ async function seedTaipeiCityPrice() {
     const value = values[i];
 
     await Indicator.findOneAndUpdate(
-      { index: 34, date },
+      { index: 51, date },
       { value },
       { upsert: true, new: true }
     );
   }
 
-  console.log('✅ 新北市第一次移轉棟數(本期）（index: 34）資料已寫入');
+  console.log('✅ 核發使照-今年 index: 51）資料已寫入');
 }
 async function seedExchangeRates() {
-  return
+
+return
   const values = [
     13266,
     8118,
@@ -61,7 +59,7 @@ async function seedExchangeRates() {
     11209,
     11002,
     10266,
-    12099,	13042,	12716,	11585,	13367,	11440,	12028,	5348,	14240,	12115
+    12099,	13042,	12716,	11585,	13367,	11440
   ];
 
   const dates = [];
@@ -78,14 +76,14 @@ async function seedExchangeRates() {
     const date = dates[i];
     const value = values[i];
     await Indicator.findOneAndUpdate(
-      { index:46, date },
+      { index:50, date },
       { value },
       { upsert: true, new: true }
     );
   }
 
     
-      console.log('✅ 核發使照 index: 46）已寫入完畢');
+      console.log('✅ 核發使照-去年 index: 50）已寫入完畢');
   }
 
 const getIndicatorLabel = (index) => {
@@ -142,7 +140,7 @@ const getIndicatorLabel = (index) => {
       45: "核發建照",
       46: "核發使照",
       47: "開工宅數(住宅H-2類)",
-      
+
       48: "核發建照-去年",
       49: "核發建照-今年",
 
