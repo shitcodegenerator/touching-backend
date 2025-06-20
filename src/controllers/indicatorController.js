@@ -1,8 +1,7 @@
 // src/controllers/indicatorController.js
 const Indicator = require('../models/indicator');
 
-const clearIndicatorValues = async (req, res) => {
-  const indexes = [38];
+const clearIndicatorValues = async (indexes) => {
 
   if (!Array.isArray(indexes)) {
     console.log('indexes must be an array')
@@ -54,20 +53,15 @@ async function seedTaipeiCityPrice() {
   console.log('✅ 新北市第一次移轉棟數(本期）（index: 34）資料已寫入');
 }
 async function seedExchangeRates() {
-return
+  return
   const values = [
-    194,
-    226,
-    319,
-    483,
-    154,
-    163,
-    241,
-    230,
-    122,
-    333,
-    325,
-    244,
+    13266,
+    8118,
+    10070,
+    11209,
+    11002,
+    10266,
+    12099,	13042,	12716,	11585,	13367,	11440,	12028,	5348,	14240,	12115
   ];
 
   const dates = [];
@@ -78,24 +72,20 @@ return
     }
   }
 
-  const counties = [
-    '松山',	'信義',	'大安',	'中山',	'中正',	'大同',	'萬華',	'文山',	'南港',	'內湖',	'士林',	'北投'
-  ]
+
 
   for (let i = 0; i < values.length; i++) {
     const date = dates[i];
     const value = values[i];
-    const county = counties[i];
-    console.log(date, value, county)
     await Indicator.findOneAndUpdate(
-      { index:38, date: county },
+      { index:46, date },
       { value },
       { upsert: true, new: true }
     );
   }
 
     
-      console.log('✅ 台北市各區去年同月買賣移轉棟數 index: 38）已寫入完畢');
+      console.log('✅ 核發使照 index: 46）已寫入完畢');
   }
 
 const getIndicatorLabel = (index) => {
@@ -147,6 +137,11 @@ const getIndicatorLabel = (index) => {
       41: "新北市各區去年同月買賣移轉棟數",
       42: "新北市各區今年上月買賣移轉棟數",
       43: "新北市各區今年當月買賣移轉棟數",
+
+      44: "營造工程物價指數",
+      45: "核發建照",
+      46: "核發使照",
+      47: "開工宅數(住宅H-2類)",
 
     };
   
