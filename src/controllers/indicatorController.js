@@ -1,91 +1,26 @@
 // src/controllers/indicatorController.js
 const Indicator = require('../models/indicator');
-const dayjs = require('dayjs');
-
-/**
- * 插入一筆新的 indicator 資料
- * @param index 指標編號
- * @param label 指標名稱
- * @param values 值陣列（依時間排序）
- * @param startDate 開始月份，例如 '113/1'
- */
- async function seedIndicator({ index, label, values, startDate }) {
-  const result = {
-    index,
-    label
-  }
-
-  // 轉換 startDate 為 dayjs
-  const [yearStr, monthStr] = startDate.split('/')
-  const rocYear = parseInt(yearStr, 10)
-  const month = parseInt(monthStr, 10)
-  const adYear = rocYear + 1911
-  let current = dayjs(`${adYear}-${month}-01`)
-
-  // 依序產出月份欄位與對應數值
-  for (let i = 0; i < values.length; i++) {
-    const rocY = current.year() - 1911
-    const m = current.month() + 1 // dayjs 的 month 是 0-based
-    const key = `${rocY}/${m}`
-
-    result[key] = values[i]
-    current = current.add(1, 'month')
-  }
-
-  // 建立或更新（避免重複）
-  await Indicator.findOneAndUpdate(
-    { index },
-    result,
-    { upsert: true, new: true }
-  )
-
-  console.log(`✅ 指標 ${index} - ${label} 建立成功`)
-}
-
-
 
 async function seedExchangeRates() {
-  seedIndicator({
-    index: 28,
-    label: '台北市成交量(筆)',
-    values: [392, 263, 436, 764, 411, 705, 507, 344, 586, 346, 232, 338, 337, 419, 163],
-    startDate: '113/1'
-  })
-  
-  seedIndicator({
-    index: 29,
-    label: '台北市單坪均價(萬)',
-    values: [121, 119, 120, 122, 126, 126, 126, 124, 121, 125, 121, 123, 120, 120, 119],
-    startDate: '113/1'
-  })
-  
-  seedIndicator({
-    index: 30,
-    label: '台北市成交均價(萬)',
-    values: [3971, 4159, 4291, 4123, 4524, 4481, 4292, 4689, 4538, 4783, 4640, 4727, 4337, 4116, 4345],
-    startDate: '113/1'
-  })
-  // const values = [
-  //   2869, 3579, 3735,
-  //   3803, 4816, null,
-  //   null, null, null,
-  //   null, null, null
-  // ];
 
-  // const dates = Array.from({ length: 12 }, (_, i) => `114/${i + 1}`);
+  const values = [
+    3971, 4159, 4291, 4123, 4524, 4481, 4292, 4689, 4538, 4783, 4640, 4727, 4337, 4116, 4345
+  ];
 
-  // for (let i = 0; i < values.length; i++) {
-  //   const date = dates[i];
-  //   const value = values[i];
+  const dates = Array.from({ length: 12 }, (_, i) => `114/${i + 1}`);
 
-  //   await Indicator.findOneAndUpdate(
-  //     { index: 27, date },
-  //     { value },
-  //     { upsert: true, new: true }
-  //   );
-  // }
+  for (let i = 0; i < values.length; i++) {
+    const date = dates[i];
+    const value = values[i];
 
-  console.log('✅ ');
+    await Indicator.findOneAndUpdate(
+      { index: 30, date },
+      { value },
+      { upsert: true, new: true }
+    );
+  }
+
+  console.log('✅ 台北市單坪均價');
   }
 
 const getIndicatorLabel = (index) => {
@@ -119,7 +54,7 @@ const getIndicatorLabel = (index) => {
       27: "台北市第一次移轉棟數(本期)",
       28: "台北市成交量(筆)",
       29: "台北市單坪均價(萬)",
-      30: "台北市成交均價(萬)",
+      30: "台北市成交均價(萬)"
     };
   
     return labels[index] || `未知指標（Index: ${index}）`;
