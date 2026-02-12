@@ -58,8 +58,8 @@ const lineFriendCheck = async (req, res) => {
   const data = {
     grant_type: "authorization_code",
     code: code,
-    client_id: 2004045021,
-    client_secret: "076a9cddc12b1ea0e7fe0bc2a1de7281",
+    client_id: process.env.LINE_CLIENT_ID,
+    client_secret: process.env.LINE_CLIENT_SECRET,
     redirect_uri
   };
 
@@ -82,8 +82,8 @@ const lineLoginHandler = async(reqBody, res) => {
   const data = {
     grant_type: "authorization_code",
     code: reqBody.code,
-    client_id: 2004045021,
-    client_secret: "076a9cddc12b1ea0e7fe0bc2a1de7281",
+    client_id: process.env.LINE_CLIENT_ID,
+    client_secret: process.env.LINE_CLIENT_SECRET,
     redirect_uri: "https://touching-dev.com/login/callback",
   };
 
@@ -309,7 +309,7 @@ const fbLoginHandler = async(reqBody, res) => {
     await newUser.save();
 
     const token = jwt.sign(
-      { username: email, userId: newUser._id, secret: '0b27092017f83216a025b5d3a897ffa4' }, // 應用程式密鑰
+      { username: email, userId: newUser._id },
       process.env.AUTH_KEY,
       { expiresIn: "7d" }
     );
@@ -412,7 +412,7 @@ const sendHintEmail = async (req, res) => {
     service: 'gmail',
     auth: {
       user: 'touchingdevelopment.service@gmail.com',
-      pass: 'fkzibwzpzgzbedpj',
+      pass: process.env.GMAIL_PASSWORD,
     },
   });
 
@@ -453,7 +453,7 @@ const sendFBEmail = async (req, res) => {
     service: 'gmail',
     auth: {
       user: 'touchingdevelopment.service@gmail.com',
-      pass: 'fkzibwzpzgzbedpj',
+      pass: process.env.GMAIL_PASSWORD,
     },
   });
 
@@ -496,13 +496,13 @@ const sendEmail = async (req, res) => {
     service: 'gmail',
     auth: {
       user: 'touchingdevelopment.service@gmail.com',
-      pass: 'fkzibwzpzgzbedpj',
+      pass: process.env.GMAIL_PASSWORD,
     },
   });
 
   await transporter.verify();
 
-  const token = crypto.randomBytes(6).toString('hex').substring(0,5);
+  const token = crypto.randomBytes(4).toString('hex').toUpperCase(); // 8 character alphanumeric token
 
   user.resetToken = token;
   user.resetExpiration = Date.now() + 3600000

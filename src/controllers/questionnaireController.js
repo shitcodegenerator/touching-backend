@@ -178,13 +178,29 @@ const getQuestionnaireStats = async (req, res) => {
       return res.status(403).json({ data: false, message: '存取密碼錯誤' });
     }
 
-    // 聚合統計各支持程度數量
-    const supportDistribution = await QuestionnaireResponse.aggregate([
-      { $match: { questionnaireId: questionnaire._id } },
-      { $group: { _id: '$supportLevel', count: { $sum: 1 } } }
+    // 使用聚合查詢一次性獲取所有統計資料
+    const [statsResult, latestComments] = await Promise.all([
+      QuestionnaireResponse.aggregate([
+        { $match: { questionnaireId: questionnaire._id } },
+        {
+          $facet: {
+            supportDistribution: [
+              { $group: { _id: '$supportLevel', count: { $sum: 1 } } }
+            ],
+            totalCount: [
+              { $count: "total" }
+            ]
+          }
+        }
+      ]),
+      QuestionnaireResponse.find({ questionnaireId: questionnaire._id })
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .select('supportLevel comment respondentName createdAt')
+        .lean() // 使用 lean() 提升查詢效能
     ]);
 
-    // 轉換為物件格式
+    // 處理聚合結果
     const supportDistMap = {
       very_supportive: 0,
       supportive: 0,
@@ -193,18 +209,13 @@ const getQuestionnaireStats = async (req, res) => {
       very_not_supportive: 0
     };
 
-    supportDistribution.forEach(item => {
-      supportDistMap[item._id] = item.count;
-    });
+    if (statsResult[0]?.supportDistribution) {
+      statsResult[0].supportDistribution.forEach(item => {
+        supportDistMap[item._id] = item.count;
+      });
+    }
 
-    // 查詢總回覆數
-    const totalResponses = await QuestionnaireResponse.countDocuments({ questionnaireId: questionnaire._id });
-
-    // 查詢最新 10 筆回覆
-    const latestComments = await QuestionnaireResponse.find({ questionnaireId: questionnaire._id })
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .select('supportLevel comment respondentName createdAt');
+    const totalResponses = statsResult[0]?.totalCount?.[0]?.total || 0;
 
     // 格式化最新意見
     const formattedComments = latestComments.map(comment => ({
@@ -236,26 +247,43 @@ const getQuestionnaireStats = async (req, res) => {
 // 後台列出所有問卷
 const listAllQuestionnaires = async (req, res) => {
   try {
-    const questionnaires = await Questionnaire.find().sort({ createdAt: -1 });
-
-    // 為每個問卷計算回覆總數
-    const questionnairesWithStats = await Promise.all(
-      questionnaires.map(async (q) => {
-        const totalResponses = await QuestionnaireResponse.countDocuments({ questionnaireId: q._id });
-        return {
-          shortId: q.shortId,
-          community: q.community,
+    // 使用聚合查詢優化效能，避免 N+1 查詢問題
+    const questionnairesWithStats = await Questionnaire.aggregate([
+      // 關聯問卷回覆
+      {
+        $lookup: {
+          from: 'questionnaireresponses',
+          localField: '_id',
+          foreignField: 'questionnaireId',
+          as: 'responses'
+        }
+      },
+      // 添加計算欄位
+      {
+        $addFields: {
+          totalResponses: { $size: '$responses' }
+        }
+      },
+      // 選擇需要的欄位
+      {
+        $project: {
+          shortId: 1,
+          community: 1,
           initiator: {
-            name: q.initiatorName,
-            phone: q.phone,
-            lineId: q.lineId
+            name: '$initiatorName',
+            phone: '$phone',
+            lineId: '$lineId'
           },
-          isActive: q.isActive,
-          totalResponses,
-          createdAt: q.createdAt
-        };
-      })
-    );
+          isActive: 1,
+          totalResponses: 1,
+          createdAt: 1
+        }
+      },
+      // 排序
+      {
+        $sort: { createdAt: -1 }
+      }
+    ]);
 
     return res.status(200).json({ data: questionnairesWithStats });
   } catch (err) {

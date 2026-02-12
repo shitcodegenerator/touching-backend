@@ -178,7 +178,7 @@ const addCategory = async (req, res) => {
   }
 };
 
-const getCategories = async (req, res) => {
+const getCategories = async (_req, res) => {
   try {
     // Retrieve all categories from the MongoDB collection
     const categories = await Category.find();
@@ -198,11 +198,11 @@ const uploadImage = async ({file}, res) => {
   const auth = new google.auth.GoogleAuth({
     credentials: {
       type: "service_account",
-      project_id: "touching-picture",
-      private_key_id: "b5aa97de76cbedd59d72e019c4d6b6c0ebf0a7a8",
+      project_id: process.env.DRIVE_PROJECT_ID,
+      private_key_id: process.env.DRIVE_PRIVATE_KEY_ID,
       private_key: process.env.DRIVE_KEY.replace(/\\n/gm, "\n"),
-      client_email: "touching@touching-picture.iam.gserviceaccount.com",
-      client_id: "108673518045441453985",
+      client_email: process.env.DRIVE_CLIENT_EMAIL,
+      client_id: process.env.DRIVE_CLIENT_ID,
       auth_uri: "https://accounts.google.com/o/oauth2/auth",
       token_uri: "https://oauth2.googleapis.com/token",
       auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",

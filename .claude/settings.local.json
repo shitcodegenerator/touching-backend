@@ -10,7 +10,12 @@
       "Bash(node:*)",
       "Bash(yarn dev)",
       "Bash(curl:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(openspec show:*)",
+      "Bash(yarn ts:*)",
+      "Bash(yarn add joi)",
+      "Bash(yarn add:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []

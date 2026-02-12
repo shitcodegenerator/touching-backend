@@ -2,7 +2,10 @@ const express = require('express')
 const bodyParser = require('body-parser');
 const connectDb = require('./src/config.js')
 const cors = require('cors');
+const helmet = require('helmet');
 const dotEnv = require('dotenv').config()
+const { errorHandler, notFound } = require('./src/middleware/errorHandler.js');
+const { generalLimiter } = require('./src/middleware/rateLimiter.js');
 const { seedExchangeRates, clearIndicatorValues } = require('./src/controllers/indicatorController.js');
 const authRoutes = require('./src/routes/authRoutes.js');
 const articleRoutes = require('./src/routes/articleRoutes.js');
@@ -22,17 +25,30 @@ const corsOptions = {
     origin: [
       'http://localhost:8888',
       'http://localhost:5173',
-      'https://touching-dev.com/',
       'https://touching-dev.com',
-      'https://touching-qat.vercel.app/',
       'https://touching-qat.vercel.app',
 ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: ['Content-Type', 'Authorization'],
   };
+
+// 安全中間件
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+}));
+
+// CORS 配置
 app.use(cors(corsOptions));
 
-
+// 全域 rate limiting
+app.use(generalLimiter);
 
 connectDb()
 
@@ -76,7 +92,9 @@ seedExchangeRates()
 
 // clearIndicatorValues()
 
-
+// 錯誤處理中間件（必須在最後）
+app.use(notFound);
+app.use(errorHandler);
 
 app.listen(PORT, () => {
     console.log(`Now listening at ${PORT}`)
