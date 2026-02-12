@@ -4,12 +4,13 @@ const connectDb = require('./src/config.js')
 const cors = require('cors');
 const dotEnv = require('dotenv').config()
 const { seedExchangeRates, clearIndicatorValues } = require('./src/controllers/indicatorController.js');
-const authRoutes = require('./src/routes/authRoutes.js'); 
-const articleRoutes = require('./src/routes/articleRoutes.js'); 
-const actionRoutes = require('./src/routes/actionRoutes.js'); 
-const typeRoutes = require('./src/routes/typeRoutes.js'); 
-const questionRoutes = require('./src/routes/questionRoutes.js'); 
+const authRoutes = require('./src/routes/authRoutes.js');
+const articleRoutes = require('./src/routes/articleRoutes.js');
+const actionRoutes = require('./src/routes/actionRoutes.js');
+const typeRoutes = require('./src/routes/typeRoutes.js');
+const questionRoutes = require('./src/routes/questionRoutes.js');
 const indicatorRoutes = require('./src/routes/indicatorRoutes.js');
+const questionnaireRoutes = require('./src/routes/questionnaireRoutes.js');
 
 
 
@@ -66,6 +67,7 @@ app.use('/api', articleRoutes);
 app.use('/api', questionRoutes);
 app.use('/api', typeRoutes);
 app.use('/api', indicatorRoutes);
+app.use('/api/questionnaire', questionnaireRoutes);
 app.get('/', (req, res) => {
   res.send('Hey this is my API running 🥳')
 })

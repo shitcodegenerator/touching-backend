@@ -50,16 +50,11 @@ async function seedTaipeiCityPrice() {
   console.log('✅ 核發使照-今年 index: 51）資料已寫入');
 }
 async function seedExchangeRates() {
-
 return
+  await clearIndicatorValues([47])
+
   const values = [
-    13266,
-    8118,
-    10070,
-    11209,
-    11002,
-    10266,
-    12099,	13042,	12716,	11585,	13367,	11440
+    9779,	6599,	8887,	8699,	10882,	8070,	17331,	11817,	11294,	10369,	11205,	12951,	9660,	12747,	10928,	10598
   ];
 
   const dates = [];
@@ -76,7 +71,7 @@ return
     const date = dates[i];
     const value = values[i];
     await Indicator.findOneAndUpdate(
-      { index:50, date },
+      { index:47, date },
       { value },
       { upsert: true, new: true }
     );

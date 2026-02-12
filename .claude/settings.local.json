@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(openspec list:*)",
+      "Bash(openspec validate:*)",
+      "Bash(tree:*)",
+      "SlashCommand(/openspec:apply:*)",
+      "Bash(yarn add nanoid@^3.3.7)",
+      "Bash(node -c:*)",
+      "Bash(node:*)",
+      "Bash(yarn dev)",
+      "Bash(curl:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
