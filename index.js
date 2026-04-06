@@ -1,48 +1,53 @@
-const express = require('express')
-const bodyParser = require('body-parser');
-const connectDb = require('./src/config.js')
-const cors = require('cors');
-const helmet = require('helmet');
-const dotEnv = require('dotenv').config()
-const { errorHandler, notFound } = require('./src/middleware/errorHandler.js');
-const { generalLimiter } = require('./src/middleware/rateLimiter.js');
-const { seedExchangeRates, clearIndicatorValues } = require('./src/controllers/indicatorController.js');
-const authRoutes = require('./src/routes/authRoutes.js');
-const articleRoutes = require('./src/routes/articleRoutes.js');
-const actionRoutes = require('./src/routes/actionRoutes.js');
-const typeRoutes = require('./src/routes/typeRoutes.js');
-const questionRoutes = require('./src/routes/questionRoutes.js');
-const indicatorRoutes = require('./src/routes/indicatorRoutes.js');
-const questionnaireRoutes = require('./src/routes/questionnaireRoutes.js');
+const express = require("express");
+const bodyParser = require("body-parser");
+const cookieParser = require("cookie-parser");
+const connectDb = require("./src/config.js");
+const cors = require("cors");
+const helmet = require("helmet");
+const dotEnv = require("dotenv").config();
+const { errorHandler, notFound } = require("./src/middleware/errorHandler.js");
+const { generalLimiter } = require("./src/middleware/rateLimiter.js");
+const {
+  seedExchangeRates,
+  clearIndicatorValues,
+} = require("./src/controllers/indicatorController.js");
+const authRoutes = require("./src/routes/authRoutes.js");
+const articleRoutes = require("./src/routes/articleRoutes.js");
+const actionRoutes = require("./src/routes/actionRoutes.js");
+const typeRoutes = require("./src/routes/typeRoutes.js");
+const questionRoutes = require("./src/routes/questionRoutes.js");
+const indicatorRoutes = require("./src/routes/indicatorRoutes.js");
+const questionnaireRoutes = require("./src/routes/questionnaireRoutes.js");
 
+const PORT = 3006;
 
-
-
-const PORT = 3006
-
-const app = express()
+const app = express();
 const corsOptions = {
-    origin: [
-      'http://localhost:8888',
-      'http://localhost:5173',
-      'https://touching-dev.com',
-      'https://touching-qat.vercel.app',
-],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  };
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:8888",
+    "http://localhost:5173",
+    "https://touching-dev.com",
+    "https://touching-qat.vercel.app",
+  ],
+  credentials: true,
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
 
 // 安全中間件
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+      },
     },
-  },
-}));
+  }),
+);
 
 // CORS 配置
 app.use(cors(corsOptions));
@@ -50,8 +55,7 @@ app.use(cors(corsOptions));
 // 全域 rate limiting
 app.use(generalLimiter);
 
-connectDb()
-
+connectDb();
 
 // const Type = require('./src/models/type.js');
 
@@ -73,22 +77,25 @@ connectDb()
 // addTypeList('買賣/贈與/遺產房地稅務', 4);
 // addTypeList('土地價值與資產活化', 5);
 
+// Cookie parser（必須在 bodyParser 之前）
+app.use(cookieParser());
+
 // Middleware to parse JSON data
 app.use(bodyParser.json());
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/auth', actionRoutes);
-app.use('/api', articleRoutes);
-app.use('/api', questionRoutes);
-app.use('/api', typeRoutes);
-app.use('/api', indicatorRoutes);
-app.use('/api/questionnaire', questionnaireRoutes);
-app.get('/', (req, res) => {
-  res.send('Hey this is my API running 🥳')
-})
+app.use("/api/auth", authRoutes);
+app.use("/api/auth", actionRoutes);
+app.use("/api", articleRoutes);
+app.use("/api", questionRoutes);
+app.use("/api", typeRoutes);
+app.use("/api", indicatorRoutes);
+app.use("/api/questionnaire", questionnaireRoutes);
+app.get("/", (req, res) => {
+  res.send("Hey this is my API running 🥳");
+});
 
-seedExchangeRates()
+seedExchangeRates();
 
 // clearIndicatorValues()
 
@@ -97,5 +104,5 @@ app.use(notFound);
 app.use(errorHandler);
 
 app.listen(PORT, () => {
-    console.log(`Now listening at ${PORT}`)
-})
+  console.log(`Now listening at ${PORT}`);
+});

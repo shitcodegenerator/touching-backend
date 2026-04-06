@@ -1,20 +1,17 @@
 const Type = require("../models/type");
+const { sendSuccess, sendError } = require("../utils/response.js");
 
 const getTypes = async (req, res) => {
-
   try {
-    // Retrieve articles from your MongoDB collection and apply pagination
-    const types = await Type.find()
+    const types = await Type.find();
 
-    res.status(200).json({ data: types});
+    return sendSuccess(res, types);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Internal Server Error" });
+    return sendError(res, "Internal Server Error", 500);
   }
 };
 
-
-
 module.exports = {
-  getTypes
+  getTypes,
 };

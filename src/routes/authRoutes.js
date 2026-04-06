@@ -1,34 +1,35 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const passport = require('passport')
+const passport = require("passport");
 
-
-const authController = require('../controllers/authController');
-const adminController = require('../controllers/adminController');
-const authenticate = require('../middleware/authenticate'); // Create a middleware for authentication
-
+const authController = require("../controllers/authController");
+const adminController = require("../controllers/adminController");
+const authenticate = require("../middleware/authenticate"); // Create a middleware for authentication
 
 // Define the registration route
-router.post('/register', authController.register);
+router.post("/register", authController.register);
 // Define the login route
-router.post('/login', authController.login);
+router.post("/login", authController.login);
+// Define the logout route
+router.post("/logout", authController.logout);
 
 // Define the getUserData route
-router.get('/profile', authenticate, authController.getUserData);
-router.put('/profile/:id', authenticate, authController.editUserData);
-router.post('/password/forget', authController.sendEmail);
-router.post('/email/hint', authController.sendHintEmail);
-router.post('/password/reset', authController.resetPassword);
-router.post('/line/check', authController.lineFriendCheck);
-router.get('/google', passport.authenticate('google', {
-    scope: [ 'email', 'profile' ],
-  }));
-
+router.get("/profile", authenticate, authController.getUserData);
+router.put("/profile/:id", authenticate, authController.editUserData);
+router.post("/password/forget", authController.sendEmail);
+router.post("/email/hint", authController.sendHintEmail);
+router.post("/password/reset", authController.resetPassword);
+router.post("/line/check", authController.lineFriendCheck);
+router.get(
+  "/google",
+  passport.authenticate("google", {
+    scope: ["email", "profile"],
+  }),
+);
 
 // Define the ADMIN registration route
-router.post('/register/admin', adminController.register);
+router.post("/register/admin", adminController.register);
 // Define the ADMIN login route
-router.post('/login/admin', adminController.login);
-
+router.post("/login/admin", adminController.login);
 
 module.exports = router;

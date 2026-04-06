@@ -1,32 +1,33 @@
-
 const User = require("../models/user.js");
-
+const { sendSuccess, sendError } = require("../utils/response.js");
 
 const addVisit = async (req, res) => {
   try {
     const { userId } = req.userData;
-    const { title, url, duration, date } = req.body
+    const { title, url, duration, date } = req.body;
 
-    const user = await User.findById(userId).select('-password');
+    const user = await User.findById(userId).select("-password");
 
     if (!user) {
-      return res.status(404).json({ data: user, message: '查無此用戶' });
+      return sendError(res, "查無此用戶", 404);
     }
 
     user.visits.push({
-      title, url, duration, date
+      title,
+      url,
+      duration,
+      date,
     });
 
     await user.save();
 
-    // Return user data
-    res.status(200).json(user);
+    return sendSuccess(res, user);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Internal Server Error" });
+    return sendError(res, "Internal Server Error", 500);
   }
 };
 
 module.exports = {
-  addVisit
+  addVisit,
 };

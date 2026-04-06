@@ -1,26 +1,21 @@
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
+const { sendError } = require("../utils/response.js");
 
 const authenticate = (req, res, next) => {
   try {
-    // Check if Authorization header exists
-    if (!req.headers.authorization) {
-      return res.status(401).json({ data: false, message: '請提供認證令牌' });
+    // 優先從 cookie 取 token
+    let token = req.cookies?.token;
+
+    // fallback: Authorization header
+    if (!token && req.headers.authorization) {
+      const parts = req.headers.authorization.split(" ");
+      if (parts.length === 2 && parts[0] === "Bearer") {
+        token = parts[1];
+      }
     }
 
-    // Extract the token from the Authorization header
-    const authHeader = req.headers.authorization;
-    const parts = authHeader.split(' ');
-    
-    // Check if header format is correct
-    if (parts.length !== 2 || parts[0] !== 'Bearer') {
-      return res.status(401).json({ data: false, message: '認證令牌格式錯誤' });
-    }
-
-    const token = parts[1];
-    
-    // Check if token exists
     if (!token) {
-      return res.status(401).json({ data: false, message: '認證令牌缺失' });
+      return sendError(res, "請提供認證令牌", 401);
     }
 
     // Verify the token
@@ -28,16 +23,18 @@ const authenticate = (req, res, next) => {
 
     // Validate token payload
     if (!decodedToken.userId || !decodedToken.username) {
-      return res.status(401).json({ data: false, message: '認證令牌無效' });
+      return sendError(res, "認證令牌無效", 401);
     }
 
     // Attach the decoded token to the request for further use
-    req.userData = { userId: decodedToken.userId, username: decodedToken.username };
-    // Continue to the next middleware or route handler
+    req.userData = {
+      userId: decodedToken.userId,
+      username: decodedToken.username,
+    };
     next();
   } catch (error) {
     console.log(error);
-    return res.status(401).json({ data: false, message: '您的登入階段已過期，請重新登入' });
+    return sendError(res, "您的登入階段已過期，請重新登入", 401);
   }
 };
 
