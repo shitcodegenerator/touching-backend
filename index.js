@@ -18,6 +18,7 @@ const typeRoutes = require("./src/routes/typeRoutes.js");
 const questionRoutes = require("./src/routes/questionRoutes.js");
 const indicatorRoutes = require("./src/routes/indicatorRoutes.js");
 const questionnaireRoutes = require("./src/routes/questionnaireRoutes.js");
+const bookingRoutes = require("./src/routes/bookingRoutes.js");
 
 const PORT = 3006;
 
@@ -25,6 +26,7 @@ const app = express();
 const corsOptions = {
   origin: [
     "http://localhost:3000",
+    "https://localhost:3001",
     "http://localhost:8888",
     "http://localhost:5173",
     "https://touching-dev.com",
@@ -91,6 +93,7 @@ app.use("/api", questionRoutes);
 app.use("/api", typeRoutes);
 app.use("/api", indicatorRoutes);
 app.use("/api/questionnaire", questionnaireRoutes);
+app.use("/api/booking", bookingRoutes);
 app.get("/", (req, res) => {
   res.send("Hey this is my API running 🥳");
 });
