@@ -207,10 +207,10 @@ const getFormattedIndicators = async (req, res) => {
       };
     });
 
-    return res.status(200).json(result);
+    return sendSuccess(res, result);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: "Internal Server Error" });
+    return sendError(res, "Internal Server Error", 500);
   }
 };
 

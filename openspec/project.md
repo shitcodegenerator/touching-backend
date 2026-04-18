@@ -8,7 +8,7 @@
 - **Framework**: Express.js
 - **Database**: MongoDB (使用 Mongoose ORM)
 - **Authentication**:
-  - JWT (jsonwebtoken) - Token 有效期 7 天
+  - JWT (jsonwebtoken) - Token 有效期 30 天，儲存於 httpOnly cookie（sameSite: none, secure: true）
   - Passport.js with Google OAuth 2.0
   - LINE Login API
   - Facebook Login API
@@ -41,14 +41,16 @@
   - Routes: `src/routes/` - API 路由定義
 - **Middleware Pattern**:
   - JWT 認證中介層: `authenticate.js` (會員) 和 `authenticateAdmin.js` (管理員)
-  - 從 `Authorization` header 提取 Bearer token
+  - 優先從 httpOnly cookie (`token`) 提取 JWT，fallback 至 `Authorization` header Bearer token
   - 驗證後將 `userId` 和 `username` 附加到 `req.userData`
 - **Repository Pattern**:
   - 使用 Mongoose 直接在 Controller 中查詢，不使用額外的 Repository 層
 - **API 設計**:
   - RESTful 風格
   - 統一前綴: `/api/auth/*` (認證)、`/api/*` (其他資源)
-  - 回應格式: `{ data: ..., message: "...", token: "..." }`
+  - 回應格式: `{ success: boolean, data: T | null, error?: string, meta?: object, message?: string }`
+  - 錯誤回應格式: `{ success: false, data: null, error: "錯誤訊息" }`
+  - 使用 `src/utils/response.js` 的 `sendSuccess()` / `sendError()` 統一處理
 - **資料庫索引策略**:
   - 使用複合索引確保資料唯一性 (例: `index + date` 在 Indicator model)
   - UUID 作為主鍵（Article model）
@@ -115,7 +117,7 @@
 - **JWT Secret**:
   - 會員使用 `process.env.AUTH_KEY`
   - 管理員使用 `process.env.ADMIN_KEY`
-  - Token 有效期固定為 7 天
+  - Token 有效期固定為 30 天，透過 httpOnly cookie 傳送
 - **密碼重設**:
   - 驗證碼 5 碼，1 小時後失效
   - 使用 crypto.randomBytes 生成安全隨機碼

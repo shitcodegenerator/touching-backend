@@ -140,7 +140,7 @@ const submitResponse = async (req, res) => {
 
     await newResponse.save();
 
-    return sendSuccess(res, true, 201);
+    return sendSuccess(res, true, 201, null, "感謝您的填寫");
   } catch (err) {
     console.log(err);
     return sendError(res, "系統錯誤，請稍後再試", 500);
