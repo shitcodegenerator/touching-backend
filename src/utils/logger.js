@@ -1,9 +1,4 @@
 const winston = require('winston');
-const path = require('path');
-
-// 創建日誌目錄
-const logDir = 'logs';
-require('fs').mkdirSync(logDir, { recursive: true });
 
 // 自定義日誌格式
 const logFormat = winston.format.combine(
@@ -12,70 +7,39 @@ const logFormat = winston.format.combine(
   winston.format.json(),
   winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
     let log = `${timestamp} [${level.toUpperCase()}]: ${message}`;
-    
+
     if (Object.keys(meta).length > 0) {
       log += ' ' + JSON.stringify(meta);
     }
-    
+
     if (stack) {
       log += '\n' + stack;
     }
-    
+
     return log;
   })
 );
 
-// 創建 Winston Logger
+// 創建 Winston Logger - 只使用 Console transport
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: logFormat,
   defaultMeta: { service: 'touching-backend' },
   transports: [
-    // 錯誤日誌（只記錄 error 等級）
-    new winston.transports.File({
-      filename: path.join(logDir, 'error.log'),
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
-    
-    // 組合日誌（記錄所有等級）
-    new winston.transports.File({
-      filename: path.join(logDir, 'combined.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
-    
-    // 安全事件日誌
-    new winston.transports.File({
-      filename: path.join(logDir, 'security.log'),
-      level: 'warn',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
+    // 所有環境都使用 Console transport
+    new winston.transports.Console({
+      format: process.env.NODE_ENV === 'production'
+        ? logFormat
+        : winston.format.combine(
+            winston.format.colorize(),
+            winston.format.simple()
+          )
     })
   ],
 });
 
-// 開發環境添加控制台輸出
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.simple()
-    )
-  }));
-}
-
-// 生產環境錯誤處理
-if (process.env.NODE_ENV === 'production') {
-  logger.exceptions.handle(
-    new winston.transports.File({ filename: path.join(logDir, 'exceptions.log') })
-  );
-  
-  logger.rejections.handle(
-    new winston.transports.File({ filename: path.join(logDir, 'rejections.log') })
-  );
-}
+// 在 Vercel/Serverless 環境中，檔案系統是只讀的
+// 因此只使用 Console transport，日誌會被 Vercel 自動收集
 
 // 日誌輔助函數
 const loggerUtils = {
