@@ -85,21 +85,6 @@ const createOnlineTourBooking = async (req, res) => {
 
     // 檢查重複提交（24小時內同手機號碼）
     const isDuplicate = await OnlineTourBooking.checkDuplicateSubmission(phone);
-    if (isDuplicate) {
-      loggerUtils.logSecurityEvent(
-        "Duplicate booking submission",
-        {
-          phone: phone.substring(0, 6) + "****", // 部分遮蔽手機號碼
-          ip: req.ip,
-        },
-        req,
-      );
-      return sendError(
-        res,
-        "您的手機號碼在24小時內已有預約記錄，如需修改或重新預約，請聯繫客服。",
-        409,
-      );
-    }
 
     // 取得用戶IP位址
     const ip_address =
@@ -127,13 +112,15 @@ const createOnlineTourBooking = async (req, res) => {
     // 產生預約ID
     const bookingId = newBooking.generateBookingId();
 
-    // Fire-and-forget: 寄送 Email 通知
-    sendBookingNotificationEmail(newBooking).catch((err) => {
+    // 寄送 Email 通知（須 await，避免 Vercel serverless 提前終止）
+    try {
+      await sendBookingNotificationEmail(newBooking);
+    } catch (err) {
       loggerUtils.logError(err, {
         context: "Booking notification email failed",
         bookingId: newBooking._id,
       });
-    });
+    }
 
     // 記錄業務事件
     loggerUtils.logBusinessEvent("Online tour booking created", {
@@ -146,9 +133,13 @@ const createOnlineTourBooking = async (req, res) => {
     });
 
     // 回傳成功結果
+    const message = isDuplicate
+      ? "您的手機號碼在24小時內已有預約記錄，請等候服務人員與您聯繫，謝謝。"
+      : "預約資料已送出";
+
     return res.status(200).json({
       success: true,
-      message: "預約資料已送出",
+      message,
       booking_id: bookingId,
     });
   } catch (error) {

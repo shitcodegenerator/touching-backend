@@ -26,24 +26,30 @@ setInterval(cleanupExpiredRecords, 60 * 1000);
  * @param {Object} options.message 錯誤訊息
  * @returns {Function} Express 中間件
  */
+let limiterCounter = 0;
+
 function createRateLimit(options = {}) {
   const {
     windowMs = 15 * 60 * 1000, // 預設 15 分鐘
-    limit = 5,                 // 預設 5 次請求
+    limit = 5, // 預設 5 次請求
     message = {
       success: false,
-      message: '請求過於頻繁，請稍後再試',
-      errors: []
-    }
+      message: "請求過於頻繁，請稍後再試",
+      errors: [],
+    },
   } = options;
+
+  // 每個 limiter 實例使用獨立的 prefix，避免不同 limiter 共用同一個 key
+  const prefix = `rate_limit_${limiterCounter++}`;
 
   return (req, res, next) => {
     // 獲取客戶端 IP，優先使用 x-forwarded-for
-    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-                     req.ip ||
-                     req.connection.remoteAddress ||
-                     req.socket.remoteAddress ||
-                     (req.connection.socket ? req.connection.socket.remoteAddress : null);
+    const clientIp =
+      req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+      req.ip ||
+      req.connection.remoteAddress ||
+      req.socket.remoteAddress ||
+      (req.connection.socket ? req.connection.socket.remoteAddress : null);
 
     if (!clientIp) {
       // 如果無法獲取 IP，允許請求通過
@@ -51,7 +57,7 @@ function createRateLimit(options = {}) {
     }
 
     const now = Date.now();
-    const key = `rate_limit:${clientIp}`;
+    const key = `${prefix}:${clientIp}`;
 
     // 獲取或創建該 IP 的請求記錄
     let record = requests.get(key);
@@ -60,7 +66,7 @@ function createRateLimit(options = {}) {
       // 新的 IP，初始化記錄
       record = {
         count: 1,
-        resetTime: now + windowMs
+        resetTime: now + windowMs,
       };
       requests.set(key, record);
       return next();
@@ -84,23 +90,23 @@ function createRateLimit(options = {}) {
 
       // 設置頭部信息
       res.set({
-        'X-RateLimit-Limit': limit,
-        'X-RateLimit-Remaining': 0,
-        'X-RateLimit-Reset': new Date(record.resetTime).toISOString(),
-        'Retry-After': retryAfter
+        "X-RateLimit-Limit": limit,
+        "X-RateLimit-Remaining": 0,
+        "X-RateLimit-Reset": new Date(record.resetTime).toISOString(),
+        "Retry-After": retryAfter,
       });
 
       return res.status(429).json({
         ...message,
-        retryAfter
+        retryAfter,
       });
     }
 
     // 設置頭部信息
     res.set({
-      'X-RateLimit-Limit': limit,
-      'X-RateLimit-Remaining': limit - record.count,
-      'X-RateLimit-Reset': new Date(record.resetTime).toISOString()
+      "X-RateLimit-Limit": limit,
+      "X-RateLimit-Remaining": limit - record.count,
+      "X-RateLimit-Reset": new Date(record.resetTime).toISOString(),
     });
 
     next();
