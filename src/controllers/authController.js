@@ -309,7 +309,6 @@ const fbLoginHandler = async (reqBody, res) => {
 
 const login = async (req, res) => {
   const type = req.body.type;
-  console.log(req.body.type, req.body.code);
 
   if (type === "line") {
     return lineLoginHandler(req.body, res);
@@ -323,34 +322,46 @@ const login = async (req, res) => {
     return fbLoginHandler(req.body, res);
   }
 
-  if (type === "account") {
-    const hasAccount = await User.findOne({ username: req.body.username });
-
-    if (!hasAccount) {
-      return sendError(res, "無此會員帳號", 400);
-    }
-    const isPasswordValid = await bcrypt.compare(
-      req.body.password,
-      hasAccount.password,
-    );
-    if (!isPasswordValid) {
-      return sendError(res, "密碼錯誤，請再試一次", 400);
-    }
-
-    const token = jwt.sign(
-      { username: req.body.username, userId: hasAccount._id },
-      process.env.AUTH_KEY,
-      { expiresIn: "30d" },
-    );
-
-    setTokenCookie(res, token);
-
-    // 回傳時排除 password
-    const userData = hasAccount.toObject();
-    delete userData.password;
-
-    return sendSuccess(res, userData);
+  // 預設為帳號密碼登入（支援 email 或 username）
+  const loginField = req.body.email || req.body.username;
+  if (!loginField || !req.body.password) {
+    return sendError(res, "請提供帳號和密碼", 400);
   }
+
+  // 同時支援 email 和 username 登入
+  const hasAccount = await User.findOne({
+    $or: [
+      { email: loginField },
+      { username: loginField }
+    ]
+  });
+
+  if (!hasAccount) {
+    return sendError(res, "無此會員帳號", 400);
+  }
+
+  const isPasswordValid = await bcrypt.compare(
+    req.body.password,
+    hasAccount.password,
+  );
+
+  if (!isPasswordValid) {
+    return sendError(res, "密碼錯誤，請再試一次", 400);
+  }
+
+  const token = jwt.sign(
+    { username: hasAccount.username || hasAccount.email, userId: hasAccount._id },
+    process.env.AUTH_KEY,
+    { expiresIn: "30d" },
+  );
+
+  setTokenCookie(res, token);
+
+  // 回傳時排除 password
+  const userData = hasAccount.toObject();
+  delete userData.password;
+
+  return sendSuccess(res, userData);
 };
 
 const logout = (req, res) => {
