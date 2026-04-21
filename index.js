@@ -25,10 +25,11 @@ const PORT = 3006;
 const app = express();
 const corsOptions = {
   origin: [
-    "http://localhost:3000",
+    // "http://localhost:3000",
+    "https://localhost:3000",
     "https://localhost:3001",
-    "http://localhost:8888",
-    "http://localhost:5173",
+    // "http://localhost:8888",
+    // "http://localhost:5173",
     "https://touching-dev.com",
     "https://touching-qat.vercel.app",
   ],

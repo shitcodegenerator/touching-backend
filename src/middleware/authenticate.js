@@ -15,7 +15,7 @@ const authenticate = (req, res, next) => {
     }
 
     if (!token) {
-      return sendError(res, "請提供認證令牌", 401);
+      return sendError(res, "登入階段過期，請重新登入", 401);
     }
 
     // Verify the token
@@ -23,7 +23,7 @@ const authenticate = (req, res, next) => {
 
     // Validate token payload
     if (!decodedToken.userId || !decodedToken.username) {
-      return sendError(res, "認證令牌無效", 401);
+      return sendError(res, "登入階段過期，請重新登入", 401);
     }
 
     // Attach the decoded token to the request for further use
