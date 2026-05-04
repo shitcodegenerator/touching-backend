@@ -17,6 +17,7 @@ const actionRoutes = require("./src/routes/actionRoutes.js");
 const typeRoutes = require("./src/routes/typeRoutes.js");
 const questionRoutes = require("./src/routes/questionRoutes.js");
 const indicatorRoutes = require("./src/routes/indicatorRoutes.js");
+const indicatorRoutesV2 = require("./src/routes/indicatorRoutesV2.js");
 const questionnaireRoutes = require("./src/routes/questionnaireRoutes.js");
 const bookingRoutes = require("./src/routes/bookingRoutes.js");
 
@@ -93,6 +94,7 @@ app.use("/api", articleRoutes);
 app.use("/api", questionRoutes);
 app.use("/api", typeRoutes);
 app.use("/api", indicatorRoutes);
+app.use("/api", indicatorRoutesV2);
 app.use("/api/questionnaire", questionnaireRoutes);
 app.use("/api/booking", bookingRoutes);
 app.get("/", (req, res) => {
