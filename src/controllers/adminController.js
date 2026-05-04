@@ -49,7 +49,13 @@ const login = async (req, res) => {
 
   try {
     // 如果前端標記為加密，則解密密碼
-    const rawPassword = encrypted ? decryptPassword(password) : password;
+    let rawPassword;
+    try {
+      rawPassword = encrypted ? decryptPassword(password) : password;
+    } catch (decryptErr) {
+      console.error("[login] 密碼解密失敗:", decryptErr.message);
+      return sendError(res, `密碼解密失敗: ${decryptErr.message}`, 400);
+    }
 
     const user = await Admin.findOne({ username });
 
@@ -78,8 +84,8 @@ const login = async (req, res) => {
       return sendError(res, "Invalid username or password", 401);
     }
   } catch (error) {
-    console.error(error);
-    return sendError(res, "Internal Server Error", 500);
+    console.error("[login] 錯誤:", error.message);
+    return sendError(res, error.message, 500);
   }
 };
 
