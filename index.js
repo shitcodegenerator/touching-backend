@@ -26,13 +26,12 @@ const PORT = 3006;
 const app = express();
 const corsOptions = {
   origin: [
-    // "http://localhost:3000",
+    "http://localhost:5173",
     "https://localhost:3000",
     "https://localhost:3001",
-    // "http://localhost:8888",
-    // "http://localhost:5173",
     "https://touching-dev.com",
     "https://touching-qat.vercel.app",
+    "https://touching-admin.vercel.app",
   ],
   credentials: true,
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",

@@ -2,21 +2,25 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const Admin = require("../models/admin.js");
 const { sendSuccess, sendError } = require("../utils/response.js");
+const { decryptPassword } = require("../utils/crypto.js");
 
 const register = async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, encrypted } = req.body;
 
   if (!username || !password) {
     return sendError(res, "All fields are required", 400);
   }
 
   try {
+    // 如果前端標記為加密，則解密密碼
+    const rawPassword = encrypted ? decryptPassword(password) : password;
+
     const existingUser = await Admin.findOne({ username });
     if (existingUser) {
       return sendError(res, "Username is already taken", 400);
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
     const newUser = new Admin({
       username,
@@ -37,20 +41,23 @@ const register = async (req, res) => {
 };
 
 const login = async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, encrypted } = req.body;
 
   if (!username || !password) {
     return sendError(res, "Username and password are required", 400);
   }
 
   try {
+    // 如果前端標記為加密，則解密密碼
+    const rawPassword = encrypted ? decryptPassword(password) : password;
+
     const user = await Admin.findOne({ username });
 
     if (!user) {
       return sendError(res, "Invalid username or password", 401);
     }
 
-    const passwordMatch = await bcrypt.compare(password, user.password);
+    const passwordMatch = await bcrypt.compare(rawPassword, user.password);
 
     if (passwordMatch) {
       const token = jwt.sign(
