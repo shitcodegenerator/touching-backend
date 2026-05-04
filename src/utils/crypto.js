@@ -23,7 +23,7 @@ const decryptPassword = (encryptedPassword) => {
     const decrypted = crypto.privateDecrypt(
       {
         key: privateKey,
-        padding: crypto.constants.RSA_PKCS1_V1_5,
+        padding: crypto.constants.RSA_PKCS1_PADDING,
       },
       buffer,
     );
