@@ -13,8 +13,17 @@ let translate;
 })();
 
 const addArticle = async (req, res) => {
-  const { author, avatar, title, summary, categoryId, type, content, image } =
-    req.body;
+  const {
+    author,
+    avatar,
+    title,
+    summary,
+    categoryId,
+    type,
+    content,
+    image,
+    keyword,
+  } = req.body;
 
   try {
     if (!translate) {
@@ -36,6 +45,7 @@ const addArticle = async (req, res) => {
       categoryId,
       content,
       image,
+      keyword: keyword || "",
       summary,
     });
 
@@ -106,27 +116,39 @@ const getArticleById = async (req, res) => {
 
 const editArticle = async (req, res) => {
   const { articleId } = req.params;
-  const { title, content, categoryId, summary, type, image, author, avatar } =
-    req.body;
+  const {
+    title,
+    content,
+    categoryId,
+    summary,
+    type,
+    image,
+    author,
+    avatar,
+    keyword,
+  } = req.body;
 
   try {
-    const article = await Article.findOne({ id: articleId });
+    const article = await Article.findOneAndUpdate(
+      { id: articleId },
+      {
+        title,
+        content,
+        categoryId,
+        summary,
+        type,
+        image,
+        author,
+        avatar,
+        keyword: keyword || "",
+        modified_at: new Date(),
+      },
+      { new: true },
+    );
 
     if (!article) {
       return sendError(res, "Article not found", 404);
     }
-
-    article.title = title;
-    article.content = content;
-    article.categoryId = categoryId;
-    article.summary = summary;
-    article.type = type;
-    article.image = image;
-    article.author = author;
-    article.avatar = avatar;
-    article.modified_at = new Date();
-
-    await article.save();
 
     return sendSuccess(res, article);
   } catch (error) {
@@ -139,13 +161,11 @@ const deleteArticle = async (req, res) => {
   const { articleId } = req.params;
 
   try {
-    const article = await Article.findOne({ id: articleId });
+    const article = await Article.findOneAndDelete({ id: articleId });
 
     if (!article) {
       return sendError(res, "Article not found", 404);
     }
-
-    await article.deleteOne({ id: articleId });
 
     return sendSuccess(res, null);
   } catch (error) {
@@ -193,8 +213,7 @@ const uploadImage = async ({ file }, res) => {
       client_id: process.env.DRIVE_CLIENT_ID,
       auth_uri: "https://accounts.google.com/o/oauth2/auth",
       token_uri: "https://oauth2.googleapis.com/token",
-      auth_provider_x509_cert_url:
-        "https://www.googleapis.com/oauth2/v1/certs",
+      auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
       client_x509_cert_url:
         "https://www.googleapis.com/robot/v1/metadata/x509/touching%40touching-picture.iam.gserviceaccount.com",
       universe_domain: "googleapis.com",
