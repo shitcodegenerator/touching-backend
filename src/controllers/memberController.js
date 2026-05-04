@@ -7,7 +7,7 @@ const getMembers = async (req, res) => {
   const skip = (page - 1) * limit;
 
   const selectFields =
-    "email name username birthday city mobile gender avatar subscribe created_at";
+    "email name username birthday city mobile avatar visits created_at";
 
   const [data, total] = await Promise.all([
     User.find({})
