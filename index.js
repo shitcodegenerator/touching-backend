@@ -20,6 +20,7 @@ const indicatorRoutes = require("./src/routes/indicatorRoutes.js");
 const indicatorRoutesV2 = require("./src/routes/indicatorRoutesV2.js");
 const questionnaireRoutes = require("./src/routes/questionnaireRoutes.js");
 const bookingRoutes = require("./src/routes/bookingRoutes.js");
+const memberRoutes = require("./src/routes/memberRoutes.js");
 
 const PORT = 3006;
 
@@ -96,6 +97,7 @@ app.use("/api", indicatorRoutes);
 app.use("/api", indicatorRoutesV2);
 app.use("/api/questionnaire", questionnaireRoutes);
 app.use("/api/booking", bookingRoutes);
+app.use("/api", memberRoutes);
 app.get("/", (req, res) => {
   res.send("Hey this is my API running 🥳");
 });
