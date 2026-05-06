@@ -1,5 +1,6 @@
 const User = require("../models/user.js");
 const { sendSuccess, sendError } = require("../utils/response.js");
+const { loggerUtils } = require("../utils/logger.js");
 
 const addVisit = async (req, res) => {
   try {
@@ -21,9 +22,20 @@ const addVisit = async (req, res) => {
 
     await user.save();
 
+    loggerUtils.logBusinessEvent("member_visit", {
+      userId,
+      title,
+      url,
+      duration,
+      date,
+    });
+
     return sendSuccess(res, user);
   } catch (error) {
-    console.error(error);
+    loggerUtils.logError(error, {
+      context: "addVisit",
+      userId: req.userData?.userId,
+    });
     return sendError(res, "Internal Server Error", 500);
   }
 };
