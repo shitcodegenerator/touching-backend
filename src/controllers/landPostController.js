@@ -1,11 +1,17 @@
 const Joi = require("joi");
+const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require("uuid");
 const LandPost = require("../models/landPost.js");
+const LandPostInterest = require("../models/landPostInterest.js");
+const User = require("../models/user.js");
 const {
   generatePresignedUploadUrl,
   deleteObjects,
 } = require("../utils/r2Client.js");
 const { sendSuccess, sendError } = require("../utils/response.js");
+
+const OFFICIAL_USERNAME = "touching_admin";
+const OFFICIAL_DISPLAY_NAME = "踏取官方";
 
 // XSS sanitize helper — 移除危險字元，不做 HTML entity encode（避免存入 DB 後被前端雙重 escape）
 const sanitizeText = (text) => {
@@ -269,39 +275,59 @@ const getMyLandPosts = async (req, res) => {
 };
 
 /**
+ * 公開模式下，套用官方顯示名稱或聯絡人隱碼
+ */
+const applyPublicDisplayFields = (postObj, ownerUsername) => {
+  delete postObj.contactPhone;
+  delete postObj.contactLine;
+
+  const isOfficial = ownerUsername === OFFICIAL_USERNAME;
+  postObj.isOfficial = isOfficial;
+
+  if (isOfficial) {
+    postObj.displayName = OFFICIAL_DISPLAY_NAME;
+    postObj.contactName = OFFICIAL_DISPLAY_NAME;
+  } else if (postObj.contactName && postObj.contactName.length > 1) {
+    const masked =
+      postObj.contactName[0] + "*".repeat(postObj.contactName.length - 1);
+    postObj.contactName = masked;
+    postObj.displayName = masked;
+  } else {
+    postObj.displayName = postObj.contactName || "";
+  }
+
+  return postObj;
+};
+
+/**
  * 取得單筆投稿（雙模式：擁有者 / 公開）
  */
 const getLandPost = async (req, res) => {
   const { id } = req.params;
-  const post = await LandPost.findById(id);
+  const post = await LandPost.findById(id).populate("userId", "username");
 
   if (!post) {
     return sendError(res, "找不到該案件", 404);
   }
 
-  // Check if requester is the owner
-  const isOwner =
-    req.userData && req.userData.userId === post.userId.toString();
+  const ownerUsername = post.userId?.username;
+  const ownerId = post.userId?._id?.toString();
+
+  const isOwner = req.userData && req.userData.userId === ownerId;
+
+  const postObj = post.toObject();
+  postObj.userId = ownerId;
 
   if (isOwner) {
-    return sendSuccess(res, post);
+    postObj.isOfficial = ownerUsername === OFFICIAL_USERNAME;
+    return sendSuccess(res, postObj);
   }
 
-  // Public access: must be approved and platform_public
   if (post.status !== "approved" || post.visibility !== "platform_public") {
     return sendError(res, "找不到該案件", 404);
   }
 
-  const postObj = post.toObject();
-
-  // 公開模式不顯示個人聯絡資訊，聯絡人姓名隱碼
-  delete postObj.contactPhone;
-  delete postObj.contactLine;
-  if (postObj.contactName && postObj.contactName.length > 1) {
-    postObj.contactName =
-      postObj.contactName[0] + "*".repeat(postObj.contactName.length - 1);
-  }
-
+  applyPublicDisplayFields(postObj, ownerUsername);
   return sendSuccess(res, postObj);
 };
 
@@ -392,20 +418,19 @@ const getPublicLandPosts = async (req, res) => {
   };
 
   const [posts, total] = await Promise.all([
-    LandPost.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    LandPost.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("userId", "username"),
     LandPost.countDocuments(query),
   ]);
 
-  // 公開列表不顯示個人聯絡資訊，聯絡人姓名隱碼
   const filteredPosts = posts.map((post) => {
     const postObj = post.toObject();
-    delete postObj.contactPhone;
-    delete postObj.contactLine;
-    if (postObj.contactName && postObj.contactName.length > 1) {
-      postObj.contactName =
-        postObj.contactName[0] + "*".repeat(postObj.contactName.length - 1);
-    }
-    return postObj;
+    const ownerUsername = postObj.userId?.username;
+    postObj.userId = postObj.userId?._id || null;
+    return applyPublicDisplayFields(postObj, ownerUsername);
   });
 
   return sendSuccess(res, filteredPosts, 200, { total, page, limit });
@@ -515,6 +540,220 @@ const adminDeleteLandPost = async (req, res) => {
   return sendSuccess(res, null, 200, null, "已成功刪除投稿");
 };
 
+// ============ 我有興趣 ============
+
+const interestSchema = Joi.object({
+  name: Joi.string().trim().min(1).max(30).required().messages({
+    "string.empty": "姓名/稱呼為必填",
+    "any.required": "姓名/稱呼為必填",
+  }),
+  phone: Joi.string().trim().allow("").max(20).optional(),
+  lineId: Joi.string().trim().allow("").max(30).optional(),
+  message: Joi.string().trim().min(1).max(200).required().messages({
+    "string.empty": "需求說明為必填",
+    "any.required": "需求說明為必填",
+  }),
+}).custom((value, helpers) => {
+  if (!value.phone && !value.lineId) {
+    return helpers.error("any.invalid", {
+      message: "聯絡電話與 Line ID 至少需填一項",
+    });
+  }
+  return value;
+}, "phone-or-line");
+
+async function sendInterestNotificationEmail({ interest, post }) {
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: "touchingdevelopment.service@gmail.com",
+      pass: process.env.GMAIL_PASSWORD,
+    },
+  });
+
+  const createdAt = new Date(interest.createdAt).toLocaleString("zh-TW", {
+    timeZone: "Asia/Taipei",
+  });
+
+  const typeMap = {
+    sell: "出售",
+    rent: "出租",
+    buy: "土地購入",
+    joint_development: "合建",
+    asset_lease: "資產租賃",
+    other: "其他",
+  };
+
+  const postLocation = `${post.city || ""}${post.district || ""}${post.section ? " " + post.section : ""}`;
+  const postArea = post.landArea ? `${post.landArea} 坪` : "-";
+
+  const mailOptions = {
+    from: "踏取國際開發有限公司 <touchingdevelopment.service@gmail.com>",
+    to: "dontz3210@gmail.com",
+    subject: `【土地興趣諮詢】${interest.name} 對 ${postLocation} 有興趣`,
+    html: `
+      <div style="font-family: 'Microsoft JhengHei', Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2c3e50; border-bottom: 2px solid #10b981; padding-bottom: 10px;">🏷️ 新的土地興趣諮詢</h2>
+
+        <h3 style="margin-top: 24px; color: #2c3e50;">申請人資訊</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 8px;">
+          <tr style="background: #f8f9fa;">
+            <td style="padding: 10px 15px; font-weight: bold; width: 140px; border: 1px solid #dee2e6;">姓名 / 稱呼</td>
+            <td style="padding: 10px 15px; border: 1px solid #dee2e6;">${interest.name}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 15px; font-weight: bold; border: 1px solid #dee2e6;">聯絡電話</td>
+            <td style="padding: 10px 15px; border: 1px solid #dee2e6;">${interest.phone || "未提供"}</td>
+          </tr>
+          <tr style="background: #f8f9fa;">
+            <td style="padding: 10px 15px; font-weight: bold; border: 1px solid #dee2e6;">Line ID</td>
+            <td style="padding: 10px 15px; border: 1px solid #dee2e6;">${interest.lineId || "未提供"}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 15px; font-weight: bold; border: 1px solid #dee2e6;">需求說明</td>
+            <td style="padding: 10px 15px; border: 1px solid #dee2e6; white-space: pre-wrap;">${interest.message}</td>
+          </tr>
+          <tr style="background: #f8f9fa;">
+            <td style="padding: 10px 15px; font-weight: bold; border: 1px solid #dee2e6;">送出時間</td>
+            <td style="padding: 10px 15px; border: 1px solid #dee2e6;">${createdAt}</td>
+          </tr>
+        </table>
+
+        <h3 style="margin-top: 24px; color: #2c3e50;">案件資訊</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 8px;">
+          <tr style="background: #f8f9fa;">
+            <td style="padding: 10px 15px; font-weight: bold; width: 140px; border: 1px solid #dee2e6;">案件編號</td>
+            <td style="padding: 10px 15px; border: 1px solid #dee2e6;">${post._id}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 15px; font-weight: bold; border: 1px solid #dee2e6;">案件類型</td>
+            <td style="padding: 10px 15px; border: 1px solid #dee2e6;">${typeMap[post.type] || post.type}</td>
+          </tr>
+          <tr style="background: #f8f9fa;">
+            <td style="padding: 10px 15px; font-weight: bold; border: 1px solid #dee2e6;">位置</td>
+            <td style="padding: 10px 15px; border: 1px solid #dee2e6;">${postLocation}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 15px; font-weight: bold; border: 1px solid #dee2e6;">面積</td>
+            <td style="padding: 10px 15px; border: 1px solid #dee2e6;">${postArea}</td>
+          </tr>
+          <tr style="background: #f8f9fa;">
+            <td style="padding: 10px 15px; font-weight: bold; border: 1px solid #dee2e6;">預算</td>
+            <td style="padding: 10px 15px; border: 1px solid #dee2e6;">${post.priceBudget || "-"}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 15px; font-weight: bold; border: 1px solid #dee2e6;">現況</td>
+            <td style="padding: 10px 15px; border: 1px solid #dee2e6;">${post.landCondition || "-"}</td>
+          </tr>
+        </table>
+
+        <p style="color: #7f8c8d; font-size: 12px; margin-top: 20px;">此為系統自動通知信，請盡快聯繫申請人。</p>
+      </div>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+}
+
+/**
+ * 提交「我有興趣」表單（auth）
+ */
+const createInterest = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.userData.userId;
+
+  const { error, value } = interestSchema.validate(req.body, {
+    abortEarly: false,
+    stripUnknown: true,
+  });
+
+  if (error) {
+    const detail = error.details[0];
+    const message = detail.context?.message || detail.message || "表單驗證失敗";
+    return sendError(res, message, 400);
+  }
+
+  const post = await LandPost.findById(id);
+  if (
+    !post ||
+    post.status !== "approved" ||
+    post.visibility !== "platform_public"
+  ) {
+    return sendError(res, "找不到該案件", 404);
+  }
+
+  const exists = await LandPostInterest.findOne({
+    landPostId: id,
+    userId,
+  });
+  if (exists) {
+    return sendError(res, "您已對此案件送出興趣申請", 409);
+  }
+
+  const sanitize = (text) =>
+    text
+      ? text
+          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+          .replace(/[<>]/g, "")
+          .replace(/javascript:/gi, "")
+          .replace(/on\w+\s*=/gi, "")
+          .trim()
+      : "";
+
+  let interest;
+  try {
+    interest = await LandPostInterest.create({
+      landPostId: id,
+      userId,
+      name: sanitize(value.name),
+      phone: sanitize(value.phone || ""),
+      lineId: sanitize(value.lineId || ""),
+      message: sanitize(value.message),
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      return sendError(res, "您已對此案件送出興趣申請", 409);
+    }
+    throw err;
+  }
+
+  try {
+    await sendInterestNotificationEmail({ interest, post });
+    interest.emailSent = true;
+    await interest.save();
+  } catch (mailErr) {
+    interest.emailError = String(mailErr?.message || mailErr).slice(0, 500);
+    await interest.save();
+    console.error("[interest] 發信失敗:", mailErr);
+  }
+
+  return sendSuccess(
+    res,
+    { _id: interest._id, landPostId: interest.landPostId },
+    201,
+    null,
+    "已送出諮詢，官方會盡快與您聯繫",
+  );
+};
+
+/**
+ * 取得目前用戶所有已申請的案件 ID 清單
+ */
+const getMyInterests = async (req, res) => {
+  const userId = req.userData.userId;
+  const interests = await LandPostInterest.find({ userId })
+    .select("landPostId createdAt")
+    .lean();
+
+  return sendSuccess(
+    res,
+    interests.map((i) => ({
+      landPostId: i.landPostId.toString(),
+      createdAt: i.createdAt,
+    })),
+  );
+};
+
 module.exports = {
   generateUploadUrl,
   createLandPost,
@@ -527,4 +766,6 @@ module.exports = {
   adminApproveLandPost,
   adminRejectLandPost,
   adminDeleteLandPost,
+  createInterest,
+  getMyInterests,
 };

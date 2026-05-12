@@ -81,8 +81,14 @@ router.post("/", authenticate, landPostController.createLandPost);
 // GET /my - auth (my posts)
 router.get("/my", authenticate, landPostController.getMyLandPosts);
 
+// GET /my-interests - auth (我已申請的案件 ID 清單)
+router.get("/my-interests", authenticate, landPostController.getMyInterests);
+
 // GET /public - no auth (public list)
 router.get("/public", landPostController.getPublicLandPosts);
+
+// POST /:id/interest - auth (我有興趣)
+router.post("/:id/interest", authenticate, landPostController.createInterest);
 
 // GET /:id - optional auth (dual mode)
 router.get("/:id", optionalAuth, landPostController.getLandPost);
