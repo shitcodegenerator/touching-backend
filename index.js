@@ -21,12 +21,15 @@ const indicatorRoutesV2 = require("./src/routes/indicatorRoutesV2.js");
 const questionnaireRoutes = require("./src/routes/questionnaireRoutes.js");
 const bookingRoutes = require("./src/routes/bookingRoutes.js");
 const memberRoutes = require("./src/routes/memberRoutes.js");
+const landPostRoutes = require("./src/routes/landPostRoutes.js");
 
 const PORT = 3006;
 
 const app = express();
 const corsOptions = {
   origin: [
+    "http://localhost:3000",
+    "http://localhost:3001",
     "http://localhost:5173",
     "https://localhost:3000",
     "https://localhost:3001",
@@ -36,7 +39,7 @@ const corsOptions = {
   ],
   credentials: true,
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Idempotency-Key"],
 };
 
 // 安全中間件
@@ -98,6 +101,7 @@ app.use("/api", indicatorRoutesV2);
 app.use("/api/questionnaire", questionnaireRoutes);
 app.use("/api/booking", bookingRoutes);
 app.use("/api", memberRoutes);
+app.use("/api/land-post", landPostRoutes);
 app.get("/", (req, res) => {
   res.send("Hey this is my API running 🥳");
 });
