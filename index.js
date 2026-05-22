@@ -5,6 +5,7 @@ const connectDb = require("./src/config.js");
 const cors = require("cors");
 const helmet = require("helmet");
 const dotEnv = require("dotenv").config();
+const { corsOptions } = require("./src/config/cors.js");
 const { errorHandler, notFound } = require("./src/middleware/errorHandler.js");
 const { generalLimiter } = require("./src/middleware/rateLimiter.js");
 const {
@@ -26,21 +27,6 @@ const landPostRoutes = require("./src/routes/landPostRoutes.js");
 const PORT = 3006;
 
 const app = express();
-const corsOptions = {
-  origin: [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:5173",
-    "https://localhost:3000",
-    "https://localhost:3001",
-    "https://touching-dev.com",
-    "https://touching-qat.vercel.app",
-    "https://touching-admin.vercel.app",
-  ],
-  credentials: true,
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-  allowedHeaders: ["Content-Type", "Authorization", "X-Idempotency-Key"],
-};
 
 // 安全中間件
 app.use(
