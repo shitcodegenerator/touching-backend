@@ -87,6 +87,12 @@ router.get("/my-interests", authenticate, landPostController.getMyInterests);
 // GET /public - no auth (public list)
 router.get("/public", landPostController.getPublicLandPosts);
 
+// GET /public/slugs - no auth（sitemap 用，輕量 slug 清單）
+router.get("/public/slugs", landPostController.getPublicLandPostSlugs);
+
+// GET /public/by-slug/:slug - no auth（SSR 詳情頁用）
+router.get("/public/by-slug/:slug", landPostController.getPublicLandPostBySlug);
+
 // POST /:id/interest - auth (我有興趣)
 router.post("/:id/interest", authenticate, landPostController.createInterest);
 

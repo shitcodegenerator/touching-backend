@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { nanoid } = require("nanoid");
 
 const landPostSchema = new mongoose.Schema(
   {
@@ -136,5 +137,17 @@ landPostSchema.index({ status: 1, visibility: 1, city: 1, createdAt: -1 });
 landPostSchema.index({ publicSlug: 1 }, { unique: true, sparse: true });
 landPostSchema.index({ userId: 1, createdAt: 1 });
 landPostSchema.index({ idempotencyKey: 1 }, { unique: true, sparse: true });
+
+// 案件被核准且為公開可見時，自動產生 URL-safe publicSlug，提供 SEO 詳情頁使用
+landPostSchema.pre("save", function (next) {
+  if (
+    !this.publicSlug &&
+    this.status === "approved" &&
+    this.visibility === "platform_public"
+  ) {
+    this.publicSlug = nanoid(10);
+  }
+  next();
+});
 
 module.exports = mongoose.model("LandPost", landPostSchema);

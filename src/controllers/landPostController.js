@@ -443,6 +443,47 @@ const getPublicLandPosts = async (req, res) => {
 };
 
 /**
+ * 依 publicSlug 取得公開案件（SSR 詳情頁用，不需登入）
+ */
+const getPublicLandPostBySlug = async (req, res) => {
+  const { slug } = req.params;
+  if (!slug || typeof slug !== "string") {
+    return sendError(res, "缺少 slug", 400);
+  }
+
+  const post = await LandPost.findOne({
+    publicSlug: slug,
+    status: "approved",
+    visibility: "platform_public",
+  }).populate("userId", "username");
+
+  if (!post) {
+    return sendError(res, "找不到該案件", 404);
+  }
+
+  const postObj = post.toObject();
+  const ownerUsername = postObj.userId?.username;
+  postObj.userId = postObj.userId?._id || null;
+  return sendSuccess(res, applyPublicDisplayFields(postObj, ownerUsername));
+};
+
+/**
+ * 列出所有公開案件的 slug 與更新時間（供 sitemap.xml 使用，輕量資料）
+ */
+const getPublicLandPostSlugs = async (req, res) => {
+  const items = await LandPost.find(
+    {
+      status: "approved",
+      visibility: "platform_public",
+      publicSlug: { $exists: true, $ne: null },
+    },
+    { publicSlug: 1, updatedAt: 1, _id: 0 },
+  ).lean();
+
+  return sendSuccess(res, items);
+};
+
+/**
  * [Admin] 列出所有土地投稿（支援狀態篩選、分頁）
  */
 const adminListLandPosts = async (req, res) => {
@@ -768,6 +809,8 @@ module.exports = {
   updateLandPost,
   deleteLandPost,
   getPublicLandPosts,
+  getPublicLandPostBySlug,
+  getPublicLandPostSlugs,
   adminListLandPosts,
   adminApproveLandPost,
   adminRejectLandPost,
