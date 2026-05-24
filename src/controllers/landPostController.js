@@ -417,9 +417,15 @@ const getPublicLandPosts = async (req, res) => {
     visibility: "platform_public",
   };
 
+  if (typeof req.query.city === "string" && req.query.city.trim()) {
+    query.city = req.query.city.trim();
+  }
+
+  const sortOrder = req.query.sort === "oldest" ? 1 : -1;
+
   const [posts, total] = await Promise.all([
     LandPost.find(query)
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: sortOrder })
       .skip(skip)
       .limit(limit)
       .populate("userId", "username"),

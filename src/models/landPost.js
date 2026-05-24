@@ -132,6 +132,7 @@ const landPostSchema = new mongoose.Schema(
 // Compound indexes
 landPostSchema.index({ userId: 1, createdAt: -1 });
 landPostSchema.index({ status: 1, visibility: 1, createdAt: -1 });
+landPostSchema.index({ status: 1, visibility: 1, city: 1, createdAt: -1 });
 landPostSchema.index({ publicSlug: 1 }, { unique: true, sparse: true });
 landPostSchema.index({ userId: 1, createdAt: 1 });
 landPostSchema.index({ idempotencyKey: 1 }, { unique: true, sparse: true });
