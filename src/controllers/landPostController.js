@@ -423,22 +423,29 @@ const getPublicLandPosts = async (req, res) => {
 
   const sortOrder = req.query.sort === "oldest" ? 1 : -1;
 
+  // 僅取公開頁需要的欄位，避免回傳 __v/version/idempotencyKey/agreedToTerms/visibility 等
+  const PUBLIC_FIELDS =
+    "type contactName city district section landNumbers approximateLocation landArea landAreaUnit landCondition description priceBudget images status publicSlug createdAt updatedAt userId";
+
   const [posts, total] = await Promise.all([
-    LandPost.find(query)
+    LandPost.find(query, PUBLIC_FIELDS)
       .sort({ createdAt: sortOrder })
       .skip(skip)
       .limit(limit)
-      .populate("userId", "username"),
+      .populate("userId", "username")
+      .lean(),
     LandPost.countDocuments(query),
   ]);
 
   const filteredPosts = posts.map((post) => {
-    const postObj = post.toObject();
+    const postObj = { ...post };
     const ownerUsername = postObj.userId?.username;
     postObj.userId = postObj.userId?._id || null;
     return applyPublicDisplayFields(postObj, ownerUsername);
   });
 
+  // 公開列表可被 Vercel 邊緣節點短暫快取，大幅降低冷啟動 / DB 延遲影響
+  res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
   return sendSuccess(res, filteredPosts, 200, { total, page, limit });
 };
 
@@ -464,6 +471,7 @@ const getPublicLandPostBySlug = async (req, res) => {
   const postObj = post.toObject();
   const ownerUsername = postObj.userId?.username;
   postObj.userId = postObj.userId?._id || null;
+  res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
   return sendSuccess(res, applyPublicDisplayFields(postObj, ownerUsername));
 };
 
@@ -480,6 +488,8 @@ const getPublicLandPostSlugs = async (req, res) => {
     { publicSlug: 1, updatedAt: 1, _id: 0 },
   ).lean();
 
+  // sitemap 資料變動不頻繁，可快取較久
+  res.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
   return sendSuccess(res, items);
 };
 

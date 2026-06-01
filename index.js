@@ -48,7 +48,7 @@ app.use(cors(corsOptions));
 // 全域 rate limiting
 app.use(generalLimiter);
 
-connectDb();
+connectDb().catch((e) => console.error("初始 DB 連線失敗:", e));
 
 // const Type = require('./src/models/type.js');
 
