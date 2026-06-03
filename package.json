@@ -6,7 +6,11 @@
   "author": "Sherry <sherry.tung@sincheng.net>",
   "license": "MIT",
   "scripts": {
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": "20.x"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1045.0",

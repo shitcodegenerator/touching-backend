@@ -24,7 +24,8 @@ const bookingRoutes = require("./src/routes/bookingRoutes.js");
 const memberRoutes = require("./src/routes/memberRoutes.js");
 const landPostRoutes = require("./src/routes/landPostRoutes.js");
 
-const PORT = 3006;
+// Zeabur / 任何 PaaS 會以 PORT 注入要監聽的埠；本地開發退回 3006
+const PORT = process.env.PORT || 3006;
 
 const app = express();
 
@@ -52,12 +53,10 @@ app.get("/api/health", async (req, res) => {
   res.set("Cache-Control", "no-store");
   try {
     const conn = await connectDb();
-    res
-      .status(200)
-      .json({
-        ok: true,
-        db: conn?.readyState === 1 ? "connected" : "connecting",
-      });
+    res.status(200).json({
+      ok: true,
+      db: conn?.readyState === 1 ? "connected" : "connecting",
+    });
   } catch {
     res.status(503).json({ ok: false });
   }
