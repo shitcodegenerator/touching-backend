@@ -45,6 +45,24 @@ app.use(
 // CORS 配置
 app.use(cors(corsOptions));
 
+// Warmup / health endpoint（置於 rate limiter 之前，保活流量不吃限流額度）。
+// no-store 確保每次都打到 lambda（不被 Vercel CDN 攔截），順便喚醒並驗證 Mongo 連線，
+// 讓低流量時段也保有一個溫熱實例，降低使用者被冷啟動（約 7s）打到的機率。
+app.get("/api/health", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    const conn = await connectDb();
+    res
+      .status(200)
+      .json({
+        ok: true,
+        db: conn?.readyState === 1 ? "connected" : "connecting",
+      });
+  } catch {
+    res.status(503).json({ ok: false });
+  }
+});
+
 // 全域 rate limiting
 app.use(generalLimiter);
 
