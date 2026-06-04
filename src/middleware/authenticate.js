@@ -22,7 +22,10 @@ const authenticate = (req, res, next) => {
     const decodedToken = jwt.verify(token, process.env.AUTH_KEY);
 
     // Validate token payload
-    if (!decodedToken.userId || !decodedToken.username) {
+    // 只要求 userId：userId 才是真正身分（簽章已驗證真偽）。
+    // username 對驗證無意義，且部分登入路徑（如 FB 未取得 email）會發出無 username 的 token，
+    // 若強制要求會把這些已登入使用者擋成 401。
+    if (!decodedToken.userId) {
       return sendError(res, "登入階段過期，請重新登入", 401);
     }
 
