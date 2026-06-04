@@ -30,7 +30,8 @@ const optionalAuth = (req, res, next) => {
 
     if (token) {
       const decodedToken = jwt.verify(token, process.env.AUTH_KEY);
-      if (decodedToken.userId && decodedToken.username) {
+      // 與 authenticate middleware 一致：只認 userId，避免無 username 的 token（如 FB 未取得 email）被當未登入
+      if (decodedToken.userId) {
         req.userData = {
           userId: decodedToken.userId,
           username: decodedToken.username,
