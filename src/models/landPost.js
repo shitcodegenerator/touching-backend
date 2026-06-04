@@ -17,6 +17,7 @@ const landPostSchema = new mongoose.Schema(
         "buy",
         "joint_development",
         "asset_lease",
+        "hotel_building_sale",
         "other",
       ],
       required: true,

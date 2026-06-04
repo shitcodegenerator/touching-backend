@@ -27,7 +27,15 @@ const sanitizeText = (text) => {
 // Joi validation schemas
 const createLandPostSchema = Joi.object({
   type: Joi.string()
-    .valid("sell", "rent", "buy", "joint_development", "asset_lease", "other")
+    .valid(
+      "sell",
+      "rent",
+      "buy",
+      "joint_development",
+      "asset_lease",
+      "hotel_building_sale",
+      "other",
+    )
     .required()
     .messages({
       "any.only": "類型不正確",
@@ -114,7 +122,15 @@ const createLandPostSchema = Joi.object({
 
 const updateLandPostSchema = Joi.object({
   type: Joi.string()
-    .valid("sell", "rent", "buy", "joint_development", "asset_lease", "other")
+    .valid(
+      "sell",
+      "rent",
+      "buy",
+      "joint_development",
+      "asset_lease",
+      "hotel_building_sale",
+      "other",
+    )
     .optional(),
   contactName: Joi.string().trim().max(15).optional(),
   city: Joi.string().trim().optional(),
@@ -647,6 +663,7 @@ async function sendInterestNotificationEmail({ interest, post }) {
     buy: "土地購入",
     joint_development: "合建",
     asset_lease: "資產租賃",
+    hotel_building_sale: "飯店/建物整棟出售",
     other: "其他",
   };
 
