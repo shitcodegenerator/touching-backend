@@ -444,8 +444,13 @@ const getPublicLandPosts = async (req, res) => {
     return applyPublicDisplayFields(postObj, ownerUsername);
   });
 
-  // 公開列表可被 Vercel 邊緣節點短暫快取，大幅降低冷啟動 / DB 延遲影響
-  res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+  // 公開列表可被 Vercel 邊緣節點快取。s-maxage 維持 120s 新鮮度；
+  // stale-while-revalidate 拉長到 1 天：只要一天內有人來過，快取就保有一份可立即回傳的舊資料，
+  // 使用者永遠拿到 ~86ms 的 HIT，冷啟動（約 7s）只發生在背景重新驗證、不卡使用者。
+  res.set(
+    "Cache-Control",
+    "public, s-maxage=120, stale-while-revalidate=86400",
+  );
   return sendSuccess(res, filteredPosts, 200, { total, page, limit });
 };
 
@@ -471,7 +476,11 @@ const getPublicLandPostBySlug = async (req, res) => {
   const postObj = post.toObject();
   const ownerUsername = postObj.userId?.username;
   postObj.userId = postObj.userId?._id || null;
-  res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+  // 同列表策略：拉長 SWR，詳情頁也讓使用者永遠拿到快取 HIT，冷啟動只發生在背景重新驗證
+  res.set(
+    "Cache-Control",
+    "public, s-maxage=120, stale-while-revalidate=86400",
+  );
   return sendSuccess(res, applyPublicDisplayFields(postObj, ownerUsername));
 };
 
