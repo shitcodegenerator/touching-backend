@@ -37,6 +37,17 @@ const PING_EXPR = {
   ],
 };
 
+// 縣市/行政區名稱正規化：DB 內舊資料用「台」（台北/台中/台南/台東），新投稿與前端地圖用「臺」。
+// 查詢與聚合一律把兩者正規化為「臺」後比較/分組，避免筆數與列表對不齊。
+const toTrad = (s) => (typeof s === "string" ? s.replace(/台/g, "臺") : s);
+const normNameExpr = (field) => ({
+  $replaceAll: {
+    input: { $ifNull: [field, ""] },
+    find: "台",
+    replacement: "臺",
+  },
+});
+
 /**
  * 套用公開查詢共用的「類型 + 坪數範圍」篩選到 mongo filter 物件（就地修改並回傳）。
  * 公開列表 getPublicLandPosts 與筆數聚合 getPublicLandPostStats 共用，確保篩選邏輯一致。
@@ -487,12 +498,20 @@ const getPublicLandPosts = async (req, res) => {
     visibility: "platform_public",
   };
 
+  // 縣市/行政區：正規化（台→臺）後比較，相容 DB 內 台/臺 混用資料
+  const locExprs = [];
   if (typeof req.query.city === "string" && req.query.city.trim()) {
-    query.city = req.query.city.trim();
+    locExprs.push({
+      $eq: [normNameExpr("$city"), toTrad(req.query.city.trim())],
+    });
   }
-
   if (typeof req.query.district === "string" && req.query.district.trim()) {
-    query.district = req.query.district.trim();
+    locExprs.push({
+      $eq: [normNameExpr("$district"), toTrad(req.query.district.trim())],
+    });
+  }
+  if (locExprs.length) {
+    query.$and = [...(query.$and || []), { $expr: { $and: locExprs } }];
   }
 
   // 類型 + 坪數範圍篩選（與筆數聚合共用同一份邏輯，確保地圖筆數與列表一致）
@@ -545,8 +564,12 @@ const getPublicLandPostStats = async (req, res) => {
   const rows = await LandPost.aggregate([
     { $match: match },
     {
+      // 依正規化（台→臺）後的縣市/行政區分組，與前端地圖名稱對齊、並把 台/臺 混用資料合併計數
       $group: {
-        _id: { city: "$city", district: "$district" },
+        _id: {
+          city: normNameExpr("$city"),
+          district: normNameExpr("$district"),
+        },
         count: { $sum: 1 },
       },
     },
