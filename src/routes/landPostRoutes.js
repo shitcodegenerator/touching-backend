@@ -88,6 +88,9 @@ router.get("/my-interests", authenticate, landPostController.getMyInterests);
 // GET /public - no auth (public list)
 router.get("/public", landPostController.getPublicLandPosts);
 
+// GET /public/stats - no auth（土地媒合地圖用，依縣市/行政區分組筆數）
+router.get("/public/stats", landPostController.getPublicLandPostStats);
+
 // GET /public/slugs - no auth（sitemap 用，輕量 slug 清單）
 router.get("/public/slugs", landPostController.getPublicLandPostSlugs);
 

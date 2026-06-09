@@ -18,6 +18,55 @@ const OFFICIAL_DISPLAY_NAME = "踏取官方";
 const PING_PER_SQM = 0.3025;
 const PING_PER_HECTARE = 3025;
 
+// 把不同單位的 landArea 換算成「坪」的聚合運算式（公開列表與筆數聚合共用）
+const PING_EXPR = {
+  $multiply: [
+    "$landArea",
+    {
+      $switch: {
+        branches: [
+          { case: { $eq: ["$landAreaUnit", "sqm"] }, then: PING_PER_SQM },
+          {
+            case: { $eq: ["$landAreaUnit", "hectare"] },
+            then: PING_PER_HECTARE,
+          },
+        ],
+        default: 1, // ping 或未指定單位
+      },
+    },
+  ],
+};
+
+/**
+ * 套用公開查詢共用的「類型 + 坪數範圍」篩選到 mongo filter 物件（就地修改並回傳）。
+ * 公開列表 getPublicLandPosts 與筆數聚合 getPublicLandPostStats 共用，確保篩選邏輯一致。
+ * - type：精確比對（未提供則不限）
+ * - 坪數範圍：半開區間 [minPing, maxPing)，以 PING_EXPR 換算成坪後比較；
+ *   未填面積者（整棟建物、收購需求等天生無單一面積）視為「不限面積」一律保留。
+ */
+const applyTypeAndPingFilters = (filter, q) => {
+  if (typeof q.type === "string" && q.type.trim()) {
+    filter.type = q.type.trim();
+  }
+
+  const parsePing = (v) => {
+    const n = Number.parseFloat(v);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  };
+  const minPing = parsePing(q.minPing);
+  const maxPing = parsePing(q.maxPing);
+
+  if (minPing !== null || maxPing !== null) {
+    const bounds = [];
+    if (minPing !== null) bounds.push({ $gte: [PING_EXPR, minPing] });
+    if (maxPing !== null) bounds.push({ $lt: [PING_EXPR, maxPing] });
+    const rangeExpr = bounds.length === 1 ? bounds[0] : { $and: bounds };
+    filter.$or = [{ landArea: { $not: { $gt: 0 } } }, { $expr: rangeExpr }];
+  }
+
+  return filter;
+};
+
 // XSS sanitize helper — 移除危險字元，不做 HTML entity encode（避免存入 DB 後被前端雙重 escape）
 const sanitizeText = (text) => {
   if (!text) return text;
@@ -442,43 +491,12 @@ const getPublicLandPosts = async (req, res) => {
     query.city = req.query.city.trim();
   }
 
-  // 坪數範圍篩選（半開區間 [minPing, maxPing)，坪為單位）。
-  // landArea 可能以坪/㎡/公頃儲存，故用 $expr + $switch 於查詢時換算成坪再比較。
-  const parsePing = (v) => {
-    const n = Number.parseFloat(v);
-    return Number.isFinite(n) && n >= 0 ? n : null;
-  };
-  const minPing = parsePing(req.query.minPing);
-  const maxPing = parsePing(req.query.maxPing);
-
-  if (minPing !== null || maxPing !== null) {
-    const pingExpr = {
-      $multiply: [
-        "$landArea",
-        {
-          $switch: {
-            branches: [
-              { case: { $eq: ["$landAreaUnit", "sqm"] }, then: PING_PER_SQM },
-              {
-                case: { $eq: ["$landAreaUnit", "hectare"] },
-                then: PING_PER_HECTARE,
-              },
-            ],
-            default: 1, // ping 或未指定單位
-          },
-        },
-      ],
-    };
-
-    const bounds = [];
-    if (minPing !== null) bounds.push({ $gte: [pingExpr, minPing] });
-    if (maxPing !== null) bounds.push({ $lt: [pingExpr, maxPing] });
-    const rangeExpr = bounds.length === 1 ? bounds[0] : { $and: bounds };
-
-    // 未填面積的案件（整棟建物出售、收購需求等天生無單一面積者）視為「不限面積」特例，
-    // 一律保留顯示；有填面積者才套用坪數區間。
-    query.$or = [{ landArea: { $not: { $gt: 0 } } }, { $expr: rangeExpr }];
+  if (typeof req.query.district === "string" && req.query.district.trim()) {
+    query.district = req.query.district.trim();
   }
+
+  // 類型 + 坪數範圍篩選（與筆數聚合共用同一份邏輯，確保地圖筆數與列表一致）
+  applyTypeAndPingFilters(query, req.query);
 
   const sortOrder = req.query.sort === "oldest" ? 1 : -1;
 
@@ -511,6 +529,48 @@ const getPublicLandPosts = async (req, res) => {
     "public, s-maxage=120, stale-while-revalidate=86400",
   );
   return sendSuccess(res, filteredPosts, 200, { total, page, limit });
+};
+
+/**
+ * 取得公開案件筆數聚合（土地媒合地圖用，不需登入）
+ * 依縣市、縣市+行政區分組計數，支援 type/minPing/maxPing 篩選（與公開列表共用篩選邏輯）。
+ * 回傳 { byCity: { 縣市: 數 }, byDistrict: { 縣市: { 行政區: 數 } } }。
+ */
+const getPublicLandPostStats = async (req, res) => {
+  const match = applyTypeAndPingFilters(
+    { status: "approved", visibility: "platform_public" },
+    req.query,
+  );
+
+  const rows = await LandPost.aggregate([
+    { $match: match },
+    {
+      $group: {
+        _id: { city: "$city", district: "$district" },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const byCity = {};
+  const byDistrict = {};
+  for (const row of rows) {
+    const { city, district } = row._id;
+    if (!city) continue;
+    byCity[city] = (byCity[city] || 0) + row.count;
+    if (!byDistrict[city]) byDistrict[city] = {};
+    if (district) {
+      byDistrict[city][district] =
+        (byDistrict[city][district] || 0) + row.count;
+    }
+  }
+
+  // 與公開列表相同的邊緣快取策略：使用者拿快取 HIT，冷啟動只發生在背景重新驗證
+  res.set(
+    "Cache-Control",
+    "public, s-maxage=120, stale-while-revalidate=86400",
+  );
+  return sendSuccess(res, { byCity, byDistrict });
 };
 
 /**
@@ -888,6 +948,7 @@ module.exports = {
   updateLandPost,
   deleteLandPost,
   getPublicLandPosts,
+  getPublicLandPostStats,
   getPublicLandPostBySlug,
   getPublicLandPostSlugs,
   adminListLandPosts,
