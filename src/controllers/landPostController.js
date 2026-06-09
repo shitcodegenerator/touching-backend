@@ -13,6 +13,11 @@ const { sendSuccess, sendError } = require("../utils/response.js");
 const OFFICIAL_USERNAME = "touching_admin";
 const OFFICIAL_DISPLAY_NAME = "踏取官方";
 
+// 各面積單位換算成「坪」的係數（1 ㎡ = 0.3025 坪、1 公頃 = 10000 ㎡ = 3025 坪）
+// 公開列表的坪數範圍篩選以此把不同單位的 landArea 統一換算後再比較
+const PING_PER_SQM = 0.3025;
+const PING_PER_HECTARE = 3025;
+
 // XSS sanitize helper — 移除危險字元，不做 HTML entity encode（避免存入 DB 後被前端雙重 escape）
 const sanitizeText = (text) => {
   if (!text) return text;
@@ -435,6 +440,44 @@ const getPublicLandPosts = async (req, res) => {
 
   if (typeof req.query.city === "string" && req.query.city.trim()) {
     query.city = req.query.city.trim();
+  }
+
+  // 坪數範圍篩選（半開區間 [minPing, maxPing)，坪為單位）。
+  // landArea 可能以坪/㎡/公頃儲存，故用 $expr + $switch 於查詢時換算成坪再比較。
+  const parsePing = (v) => {
+    const n = Number.parseFloat(v);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  };
+  const minPing = parsePing(req.query.minPing);
+  const maxPing = parsePing(req.query.maxPing);
+
+  if (minPing !== null || maxPing !== null) {
+    const pingExpr = {
+      $multiply: [
+        "$landArea",
+        {
+          $switch: {
+            branches: [
+              { case: { $eq: ["$landAreaUnit", "sqm"] }, then: PING_PER_SQM },
+              {
+                case: { $eq: ["$landAreaUnit", "hectare"] },
+                then: PING_PER_HECTARE,
+              },
+            ],
+            default: 1, // ping 或未指定單位
+          },
+        },
+      ],
+    };
+
+    const bounds = [];
+    if (minPing !== null) bounds.push({ $gte: [pingExpr, minPing] });
+    if (maxPing !== null) bounds.push({ $lt: [pingExpr, maxPing] });
+    const rangeExpr = bounds.length === 1 ? bounds[0] : { $and: bounds };
+
+    // 未填面積的案件（整棟建物出售、收購需求等天生無單一面積者）視為「不限面積」特例，
+    // 一律保留顯示；有填面積者才套用坪數區間。
+    query.$or = [{ landArea: { $not: { $gt: 0 } } }, { $expr: rangeExpr }];
   }
 
   const sortOrder = req.query.sort === "oldest" ? 1 : -1;
