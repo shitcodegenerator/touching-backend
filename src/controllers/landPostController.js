@@ -521,7 +521,7 @@ const getPublicLandPosts = async (req, res) => {
 
   // 僅取公開頁需要的欄位，避免回傳 __v/version/idempotencyKey/agreedToTerms/visibility 等
   const PUBLIC_FIELDS =
-    "type contactName city district section landNumbers approximateLocation landArea landAreaUnit landCondition description priceBudget images status publicSlug createdAt updatedAt userId";
+    "type contactName city district publicTitle section landNumbers approximateLocation landArea landAreaUnit landCondition description priceBudget images status publicSlug createdAt updatedAt userId";
 
   const [posts, total] = await Promise.all([
     LandPost.find(query, PUBLIC_FIELDS)
