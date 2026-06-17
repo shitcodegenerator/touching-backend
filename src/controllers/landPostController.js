@@ -60,6 +60,14 @@ const applyTypeAndPingFilters = (filter, q) => {
     filter.type = q.type.trim();
   }
 
+  // 土地類型（SEO 分類頁用）：精確比對且需為合法 enum，未提供則不限
+  if (
+    typeof q.landType === "string" &&
+    LAND_TYPE_ENUM.includes(q.landType.trim())
+  ) {
+    filter.landType = q.landType.trim();
+  }
+
   const parsePing = (v) => {
     const n = Number.parseFloat(v);
     return Number.isFinite(n) && n >= 0 ? n : null;
@@ -89,6 +97,19 @@ const sanitizeText = (text) => {
     .trim();
 };
 
+// 土地類型 enum（需與 models/landPost.js 與前端 constants/landMutual.ts 一致）
+const LAND_TYPE_ENUM = [
+  "farmland",
+  "building",
+  "residential",
+  "commercial",
+  "industrial",
+  "forest",
+  "slope",
+  "road",
+  "other",
+];
+
 // Joi validation schemas
 const createLandPostSchema = Joi.object({
   type: Joi.string()
@@ -116,6 +137,11 @@ const createLandPostSchema = Joi.object({
   district: Joi.string().trim().required().messages({
     "any.required": "區域為必填",
   }),
+  landType: Joi.array()
+    .items(Joi.string().valid(...LAND_TYPE_ENUM))
+    .single()
+    .optional()
+    .messages({ "any.only": "土地類型不正確" }),
   section: Joi.string().trim().allow("").optional(),
   landNumbers: Joi.array()
     .items(Joi.string().trim().max(30))
@@ -200,6 +226,10 @@ const updateLandPostSchema = Joi.object({
   contactName: Joi.string().trim().max(15).optional(),
   city: Joi.string().trim().optional(),
   district: Joi.string().trim().optional(),
+  landType: Joi.array()
+    .items(Joi.string().valid(...LAND_TYPE_ENUM))
+    .single()
+    .optional(),
   section: Joi.string().trim().allow("").optional(),
   landNumbers: Joi.array()
     .items(Joi.string().trim().max(30))
@@ -521,7 +551,7 @@ const getPublicLandPosts = async (req, res) => {
 
   // 僅取公開頁需要的欄位，避免回傳 __v/version/idempotencyKey/agreedToTerms/visibility 等
   const PUBLIC_FIELDS =
-    "type contactName city district publicTitle section landNumbers approximateLocation landArea landAreaUnit landCondition description priceBudget images status publicSlug createdAt updatedAt userId";
+    "type landType contactName city district publicTitle section landNumbers approximateLocation landArea landAreaUnit landCondition description priceBudget images status publicSlug createdAt updatedAt userId";
 
   const [posts, total] = await Promise.all([
     LandPost.find(query, PUBLIC_FIELDS)

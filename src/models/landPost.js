@@ -35,6 +35,23 @@ const landPostSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // 土地類型（SEO 分類用，選填，可複選）。大面積土地常為複合式分區，故為陣列；
+    // enum 逐元素驗證；值需與前端 constants/landMutual.ts 的 LandType 一致。
+    landType: {
+      type: [String],
+      enum: [
+        "farmland",
+        "building",
+        "residential",
+        "commercial",
+        "industrial",
+        "forest",
+        "slope",
+        "road",
+        "other",
+      ],
+      default: undefined,
+    },
     section: {
       type: String,
     },
@@ -135,6 +152,7 @@ const landPostSchema = new mongoose.Schema(
 landPostSchema.index({ userId: 1, createdAt: -1 });
 landPostSchema.index({ status: 1, visibility: 1, createdAt: -1 });
 landPostSchema.index({ status: 1, visibility: 1, city: 1, createdAt: -1 });
+landPostSchema.index({ status: 1, visibility: 1, landType: 1, createdAt: -1 });
 landPostSchema.index({ publicSlug: 1 }, { unique: true, sparse: true });
 landPostSchema.index({ userId: 1, createdAt: 1 });
 landPostSchema.index({ idempotencyKey: 1 }, { unique: true, sparse: true });
