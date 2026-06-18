@@ -87,6 +87,11 @@ const landPostSchema = new mongoose.Schema(
       type: String,
       maxlength: 20,
     },
+    // 是否持有該案件的委託（授權）書：投稿者已取得地主出售委託授權
+    hasAuthorizationLetter: {
+      type: Boolean,
+      default: false,
+    },
     visibility: {
       type: String,
       enum: ["platform_public", "internal_only"],

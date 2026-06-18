@@ -177,6 +177,7 @@ const createLandPostSchema = Joi.object({
   priceBudget: Joi.string().trim().max(20).allow("").optional().messages({
     "string.max": "價格預算不能超過 20 字元",
   }),
+  hasAuthorizationLetter: Joi.boolean().optional(),
   visibility: Joi.string()
     .valid("platform_public", "internal_only")
     .required()
@@ -241,6 +242,7 @@ const updateLandPostSchema = Joi.object({
   landCondition: Joi.string().trim().max(200).allow("").optional(),
   description: Joi.string().trim().max(200).optional(),
   priceBudget: Joi.string().trim().max(20).allow("").optional(),
+  hasAuthorizationLetter: Joi.boolean().optional(),
   visibility: Joi.string().valid("platform_public", "internal_only").optional(),
   images: Joi.array()
     .items(
@@ -551,7 +553,7 @@ const getPublicLandPosts = async (req, res) => {
 
   // 僅取公開頁需要的欄位，避免回傳 __v/version/idempotencyKey/agreedToTerms/visibility 等
   const PUBLIC_FIELDS =
-    "type landType contactName city district publicTitle section landNumbers approximateLocation landArea landAreaUnit landCondition description priceBudget images status publicSlug createdAt updatedAt userId";
+    "type landType contactName city district publicTitle section landNumbers approximateLocation landArea landAreaUnit landCondition description priceBudget hasAuthorizationLetter images status publicSlug createdAt updatedAt userId";
 
   const [posts, total] = await Promise.all([
     LandPost.find(query, PUBLIC_FIELDS)
