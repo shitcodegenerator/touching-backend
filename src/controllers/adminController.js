@@ -54,7 +54,12 @@ const login = async (req, res) => {
       rawPassword = encrypted ? decryptPassword(password) : password;
     } catch (decryptErr) {
       console.error("[login] 密碼解密失敗:", decryptErr.message);
-      return sendError(res, `密碼解密失敗: ${decryptErr.message}`, 400);
+      return sendError(
+        res,
+        `密碼解密失敗: ${decryptErr.message}`,
+        400,
+        decryptErr,
+      );
     }
 
     const user = await Admin.findOne({ username });

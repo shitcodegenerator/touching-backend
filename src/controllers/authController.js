@@ -54,7 +54,7 @@ const register = async (req, res) => {
     return sendSuccess(res, userData);
   } catch (err) {
     console.log(err);
-    return sendError(res, "註冊失敗，請再試一次。", 400);
+    return sendError(res, "註冊失敗，請再試一次。", 400, err);
   }
 };
 
@@ -81,7 +81,7 @@ const lineFriendCheck = async (req, res) => {
 
     return sendSuccess(res, friendRes.data.friendFlag);
   } catch (e) {
-    return sendError(res, "LINE查詢失敗", 400);
+    return sendError(res, "LINE查詢失敗", 400, e);
   }
 };
 
@@ -151,7 +151,7 @@ const lineLoginHandler = async (reqBody, res) => {
     return sendSuccess(res, { registered: true, message: "註冊成功" });
   } catch (err) {
     console.log(err);
-    return sendError(res, "註冊失敗，請再試一次。", 400);
+    return sendError(res, "註冊失敗，請再試一次。", 400, err);
   }
 };
 
@@ -251,7 +251,7 @@ const googleLoginHandler = async (code, res) => {
     return sendSuccess(res, { registered: true, message: "註冊成功" });
   } catch (err) {
     console.log("GoogleError", err);
-    return sendError(res, "註冊失敗，請再試一次。", 400);
+    return sendError(res, "註冊失敗，請再試一次。", 400, err);
   }
 };
 
@@ -296,7 +296,7 @@ const fbLoginHandler = async (reqBody, res) => {
     return sendSuccess(res, { registered: true, message: "註冊成功" });
   } catch (err) {
     console.log(err);
-    return sendError(res, "註冊失敗，請再試一次。", 400);
+    return sendError(res, "註冊失敗，請再試一次。", 400, err);
   }
 };
 

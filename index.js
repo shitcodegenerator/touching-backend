@@ -8,6 +8,7 @@ const dotEnv = require("dotenv").config();
 const { corsOptions } = require("./src/config/cors.js");
 const { errorHandler, notFound } = require("./src/middleware/errorHandler.js");
 const { generalLimiter } = require("./src/middleware/rateLimiter.js");
+const { notifyError } = require("./src/utils/errorNotifier.js");
 const {
   seedExchangeRates,
   clearIndicatorValues,
@@ -26,6 +27,26 @@ const landPostRoutes = require("./src/routes/landPostRoutes.js");
 
 // Zeabur / 任何 PaaS 會以 PORT 注入要監聽的埠；本地開發退回 3006
 const PORT = process.env.PORT || 3006;
+
+// 全域未捕獲錯誤：寄送 email 通知（best-effort，不主動結束程序）
+process.on("unhandledRejection", (reason) => {
+  console.error("unhandledRejection:", reason);
+  notifyError({
+    req: null,
+    statusCode: 500,
+    message: `unhandledRejection: ${reason?.message || reason}`,
+    error: reason instanceof Error ? reason : new Error(String(reason)),
+  });
+});
+process.on("uncaughtException", (err) => {
+  console.error("uncaughtException:", err);
+  notifyError({
+    req: null,
+    statusCode: 500,
+    message: `uncaughtException: ${err?.message || err}`,
+    error: err,
+  });
+});
 
 const app = express();
 

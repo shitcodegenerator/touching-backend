@@ -1,3 +1,5 @@
+const { notifyError } = require("../utils/errorNotifier.js");
+
 // 自定義錯誤類別
 class CustomError extends Error {
   constructor(message, statusCode, code = null) {
@@ -41,7 +43,7 @@ class ConflictError extends CustomError {
 }
 
 // 統一錯誤處理中間件
-const errorHandler = (err, req, res, next) => {
+const errorHandler = async (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
 
@@ -104,7 +106,19 @@ const errorHandler = (err, req, res, next) => {
     errorResponse.stack = error.stack;
   }
 
-  res.status(error.statusCode || 500).json(errorResponse);
+  const finalStatus = error.statusCode || 500;
+
+  // 5xx（非預期的系統錯誤）寄送 email 通知。await 確保 serverless 在回應前完成寄送。
+  if (finalStatus >= 500) {
+    await notifyError({
+      req,
+      statusCode: finalStatus,
+      message: error.message || "服務器內部錯誤",
+      error: err,
+    });
+  }
+
+  res.status(finalStatus).json(errorResponse);
 };
 
 // 處理未捕獲的路由
