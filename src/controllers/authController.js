@@ -69,16 +69,14 @@ const lineFriendCheck = async (req, res) => {
       redirect_uri,
     };
 
-    axios.defaults.headers.post["Content-Type"] =
-      "application/x-www-form-urlencoded";
     const lineRes = await axios.post(
       "https://api.line.me/oauth2/v2.1/token",
       data,
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
     );
-    axios.defaults.headers["Authorization"] =
-      `Bearer ${lineRes.data.access_token}`;
     const friendRes = await axios.get(
       "https://api.line.me/friendship/v1/status",
+      { headers: { Authorization: `Bearer ${lineRes.data.access_token}` } },
     );
 
     return sendSuccess(res, friendRes.data.friendFlag);
@@ -96,21 +94,21 @@ const lineLoginHandler = async (reqBody, res) => {
     redirect_uri: "https://touching-dev.com/login/callback",
   };
 
-  axios.defaults.headers.post["Content-Type"] =
-    "application/x-www-form-urlencoded";
   try {
     const lineRes = await axios.post(
       "https://api.line.me/oauth2/v2.1/token",
       data,
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
     );
 
-    axios.defaults.headers["Authorization"] =
-      `Bearer ${lineRes.data.access_token}`;
-
-    const lineProfileRes = await axios.post("https://api.line.me/v2/profile", {
-      client_id: 2004045021,
-      id_token: lineRes.data.access_token,
-    });
+    const lineProfileRes = await axios.post(
+      "https://api.line.me/v2/profile",
+      {
+        client_id: 2004045021,
+        id_token: lineRes.data.access_token,
+      },
+      { headers: { Authorization: `Bearer ${lineRes.data.access_token}` } },
+    );
 
     const userId = lineProfileRes.data.userId;
 
@@ -207,8 +205,6 @@ const ggg = async (data, done) => {
 };
 
 const googleLoginHandler = async (code, res) => {
-  axios.defaults.headers.post["Content-Type"] =
-    "application/x-www-form-urlencoded";
   try {
     const googleRes = await axios.get(
       `https://oauth2.googleapis.com/tokeninfo?id_token=${code}`,
@@ -261,9 +257,6 @@ const googleLoginHandler = async (code, res) => {
 
 const fbLoginHandler = async (reqBody, res) => {
   const { code, name, email, avatar } = reqBody;
-
-  axios.defaults.headers.post["Content-Type"] =
-    "application/x-www-form-urlencoded";
 
   try {
     const existingUser = await User.findOne({ facebook_id: code }).select(
@@ -330,10 +323,7 @@ const login = async (req, res) => {
 
   // 同時支援 email 和 username 登入
   const hasAccount = await User.findOne({
-    $or: [
-      { email: loginField },
-      { username: loginField }
-    ]
+    $or: [{ email: loginField }, { username: loginField }],
   });
 
   if (!hasAccount) {
@@ -350,7 +340,10 @@ const login = async (req, res) => {
   }
 
   const token = jwt.sign(
-    { username: hasAccount.username || hasAccount.email, userId: hasAccount._id },
+    {
+      username: hasAccount.username || hasAccount.email,
+      userId: hasAccount._id,
+    },
     process.env.AUTH_KEY,
     { expiresIn: "30d" },
   );
