@@ -48,6 +48,7 @@ const landPostSchema = new mongoose.Schema(
         "forest",
         "slope",
         "road",
+        "public_facility",
         "other",
       ],
       default: undefined,
@@ -74,6 +75,45 @@ const landPostSchema = new mongoose.Schema(
       type: String,
       enum: ["ping", "sqm", "hectare"],
     },
+    // 土地持分（分子／分母），純數字、各 ≤6 位數
+    landShareNumerator: {
+      type: Number,
+      min: 0,
+    },
+    landShareDenominator: {
+      type: Number,
+      min: 0,
+    },
+    // 地主人數，1–999（≤3 位數）
+    landOwnerCount: {
+      type: Number,
+      min: 0,
+    },
+    // 容積率（%），≤3 位數
+    floorAreaRatio: {
+      type: Number,
+      min: 0,
+    },
+    // 建蔽率（%），≤3 位數
+    buildingCoverageRatio: {
+      type: Number,
+      min: 0,
+    },
+    // 面寬（純數字，允許小數 2 位）
+    frontageWidth: {
+      type: Number,
+      min: 0,
+    },
+    // 縱深（純數字，允許小數 2 位）
+    lotDepth: {
+      type: Number,
+      min: 0,
+    },
+    // 臨路條件（文字，≤20 字）
+    roadCondition: {
+      type: String,
+      maxlength: 20,
+    },
     landCondition: {
       type: String,
       maxlength: 200,
@@ -87,8 +127,18 @@ const landPostSchema = new mongoose.Schema(
       type: String,
       maxlength: 20,
     },
+    // 單價（萬元/坪），純數字、允許小數 2 位
+    unitPrice: {
+      type: Number,
+      min: 0,
+    },
     // 是否持有該案件的委託（授權）書：投稿者已取得地主出售委託授權
     hasAuthorizationLetter: {
+      type: Boolean,
+      default: false,
+    },
+    // 是否直接對所有權人/買方（依案件類型：租售對地主、購入/承租資產對買方）
+    directOwnerContact: {
       type: Boolean,
       default: false,
     },
@@ -140,6 +190,12 @@ const landPostSchema = new mongoose.Schema(
     agreedToTerms: {
       type: Boolean,
       required: true,
+    },
+    // 是否同意個資法（相關）使用。強制勾選由前端把關；後端僅接受並儲存，
+    // 不設 required（保護早於本次變更、缺此欄位的既有文件於審核 save() 不失敗）。
+    agreedToPrivacy: {
+      type: Boolean,
+      default: false,
     },
     lastEditedAt: {
       type: Date,

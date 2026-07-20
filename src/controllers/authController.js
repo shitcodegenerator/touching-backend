@@ -86,12 +86,16 @@ const lineFriendCheck = async (req, res) => {
 };
 
 const lineLoginHandler = async (reqBody, res) => {
+  // redirect_uri 需與前端 authorize 時所用一致（LINE 規範）。
+  // 由前端依當前站台 origin 傳入，使本地（localhost）與正式（touching-dev）皆可用；
+  // 未傳入時退回正式站，維持既有行為。
   const data = {
     grant_type: "authorization_code",
     code: reqBody.code,
     client_id: process.env.LINE_CLIENT_ID,
     client_secret: process.env.LINE_CLIENT_SECRET,
-    redirect_uri: "https://touching-dev.com/login/callback",
+    redirect_uri:
+      reqBody.redirect_uri || "https://touching-dev.com/login/callback",
   };
 
   try {

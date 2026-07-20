@@ -107,8 +107,53 @@ const LAND_TYPE_ENUM = [
   "forest",
   "slope",
   "road",
+  "public_facility",
   "other",
 ];
+
+// 案件類型代碼 → 中文標籤（通知信共用）
+const TYPE_MAP = {
+  sell: "出售",
+  rent: "出租",
+  buy: "土地購入",
+  joint_development: "合建",
+  asset_lease: "承租資產",
+  hotel_building_sale: "飯店/建物整棟出售",
+  other: "其他",
+};
+
+// 土地類型代碼 → 中文標籤（通知信共用）
+const LAND_TYPE_LABEL = {
+  farmland: "農地",
+  building: "建地",
+  residential: "住宅用地",
+  commercial: "商業用地",
+  industrial: "工業用地",
+  forest: "林地",
+  slope: "山坡地",
+  road: "道路用地",
+  public_facility: "公保地",
+  other: "其他",
+};
+
+// 面積單位代碼 → 中文標籤（通知信共用）
+const AREA_UNIT_LABEL = { ping: "坪", sqm: "平方公尺", hectare: "公頃" };
+
+// 新投稿即時通知收件人（管理員）
+const NEW_POST_NOTIFY_RECIPIENTS = [
+  "dontz3210@gmail.com",
+  "teeechoice@gmail.com",
+];
+
+// 建立 Gmail 寄信 transporter（各通知信共用）
+const createMailTransporter = () =>
+  nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: "touchingdevelopment.service@gmail.com",
+      pass: process.env.GMAIL_PASSWORD,
+    },
+  });
 
 // Joi validation schemas
 const createLandPostSchema = Joi.object({
@@ -167,6 +212,46 @@ const createLandPostSchema = Joi.object({
     .messages({
       "any.only": "面積單位不正確",
     }),
+  landShareNumerator: Joi.number()
+    .integer()
+    .min(0)
+    .max(999999)
+    .optional()
+    .messages({
+      "number.max": "土地持分分子最多 6 位數",
+    }),
+  landShareDenominator: Joi.number()
+    .integer()
+    .min(0)
+    .max(999999)
+    .optional()
+    .messages({
+      "number.max": "土地持分分母最多 6 位數",
+    }),
+  landOwnerCount: Joi.number().integer().min(1).max(999).optional().messages({
+    "number.max": "地主人數最多 3 位數",
+    "number.min": "地主人數需為 1 以上",
+  }),
+  floorAreaRatio: Joi.number().integer().min(0).max(999).optional().messages({
+    "number.max": "容積率最多 3 位數",
+  }),
+  buildingCoverageRatio: Joi.number()
+    .integer()
+    .min(0)
+    .max(999)
+    .optional()
+    .messages({
+      "number.max": "建蔽率最多 3 位數",
+    }),
+  frontageWidth: Joi.number().min(0).precision(2).optional().messages({
+    "number.min": "面寬不能為負數",
+  }),
+  lotDepth: Joi.number().min(0).precision(2).optional().messages({
+    "number.min": "縱深不能為負數",
+  }),
+  roadCondition: Joi.string().trim().max(20).allow("").optional().messages({
+    "string.max": "臨路條件不能超過 20 字元",
+  }),
   landCondition: Joi.string().trim().max(200).allow("").optional().messages({
     "string.max": "土地現況不能超過 200 字元",
   }),
@@ -177,7 +262,11 @@ const createLandPostSchema = Joi.object({
   priceBudget: Joi.string().trim().max(20).allow("").optional().messages({
     "string.max": "價格預算不能超過 20 字元",
   }),
+  unitPrice: Joi.number().min(0).precision(2).optional().messages({
+    "number.min": "單價不能為負數",
+  }),
   hasAuthorizationLetter: Joi.boolean().optional(),
+  directOwnerContact: Joi.boolean().optional(),
   visibility: Joi.string()
     .valid("platform_public", "internal_only")
     .required()
@@ -209,6 +298,8 @@ const createLandPostSchema = Joi.object({
   agreedToTerms: Joi.boolean().required().messages({
     "any.required": "請同意投稿條款",
   }),
+  // 個資法同意：強制勾選由前端把關，後端僅接受並儲存（不硬擋）
+  agreedToPrivacy: Joi.boolean().optional(),
   idempotencyKey: Joi.string().trim().optional(),
 });
 
@@ -239,10 +330,20 @@ const updateLandPostSchema = Joi.object({
   approximateLocation: Joi.string().trim().max(50).allow("").optional(),
   landArea: Joi.number().min(0).optional(),
   landAreaUnit: Joi.string().valid("ping", "sqm", "hectare").optional(),
+  landShareNumerator: Joi.number().integer().min(0).max(999999).optional(),
+  landShareDenominator: Joi.number().integer().min(0).max(999999).optional(),
+  landOwnerCount: Joi.number().integer().min(1).max(999).optional(),
+  floorAreaRatio: Joi.number().integer().min(0).max(999).optional(),
+  buildingCoverageRatio: Joi.number().integer().min(0).max(999).optional(),
+  frontageWidth: Joi.number().min(0).precision(2).optional(),
+  lotDepth: Joi.number().min(0).precision(2).optional(),
+  roadCondition: Joi.string().trim().max(20).allow("").optional(),
   landCondition: Joi.string().trim().max(200).allow("").optional(),
   description: Joi.string().trim().max(200).optional(),
   priceBudget: Joi.string().trim().max(20).allow("").optional(),
+  unitPrice: Joi.number().min(0).precision(2).optional(),
   hasAuthorizationLetter: Joi.boolean().optional(),
+  directOwnerContact: Joi.boolean().optional(),
   visibility: Joi.string().valid("platform_public", "internal_only").optional(),
   images: Joi.array()
     .items(
@@ -273,6 +374,7 @@ const sanitizeBody = (body) => {
     "section",
     "approximateLocation",
     "description",
+    "roadCondition",
     "landCondition",
     "priceBudget",
     "contactPhone",
@@ -314,6 +416,102 @@ const generateUploadUrl = async (req, res) => {
 
   return sendSuccess(res, { url, key, publicUrl });
 };
+
+/**
+ * 新投稿即時通知信（寄給管理員，背景寄送）
+ */
+async function sendNewPostNotificationEmail({ post }) {
+  const transporter = createMailTransporter();
+
+  const createdAt = new Date(post.createdAt).toLocaleString("zh-TW", {
+    timeZone: "Asia/Taipei",
+  });
+
+  const location = `${post.city || ""}${post.district || ""}${post.section ? " " + post.section : ""}`;
+  const area = post.landArea
+    ? `${post.landArea} ${AREA_UNIT_LABEL[post.landAreaUnit] || "坪"}`
+    : "-";
+  const landTypeText =
+    Array.isArray(post.landType) && post.landType.length
+      ? post.landType.map((t) => LAND_TYPE_LABEL[t] || t).join("、")
+      : "-";
+  const landNumbersText =
+    Array.isArray(post.landNumbers) && post.landNumbers.length
+      ? post.landNumbers.join("、")
+      : "-";
+  const visibilityLabel =
+    post.visibility === "internal_only" ? "僅內部可見" : "平台公開";
+
+  const landShareText =
+    post.landShareNumerator != null && post.landShareDenominator != null
+      ? `${post.landShareNumerator} / ${post.landShareDenominator}`
+      : "-";
+  const ownerCountText =
+    post.landOwnerCount != null ? `${post.landOwnerCount} 人` : "-";
+  const farText = post.floorAreaRatio != null ? `${post.floorAreaRatio}%` : "-";
+  const bcrText =
+    post.buildingCoverageRatio != null ? `${post.buildingCoverageRatio}%` : "-";
+  const frontageText =
+    post.frontageWidth != null ? String(post.frontageWidth) : "-";
+  const depthText = post.lotDepth != null ? String(post.lotDepth) : "-";
+  const unitPriceText =
+    post.unitPrice != null ? `${post.unitPrice} 萬元/坪` : "-";
+  const directOwnerText = post.directOwnerContact ? "是" : "否";
+
+  const row = (label, value, alt) => `
+    <tr${alt ? ' style="background: #f8f9fa;"' : ""}>
+      <td style="padding: 10px 15px; font-weight: bold; width: 140px; border: 1px solid #dee2e6;">${label}</td>
+      <td style="padding: 10px 15px; border: 1px solid #dee2e6; white-space: pre-wrap;">${value ?? "-"}</td>
+    </tr>`;
+
+  const mailOptions = {
+    from: "踏取國際開發有限公司 <touchingdevelopment.service@gmail.com>",
+    to: NEW_POST_NOTIFY_RECIPIENTS.join(", "),
+    subject: `【新投稿通知】${TYPE_MAP[post.type] || post.type}｜${location || "未填位置"}`,
+    html: `
+      <div style="font-family: 'Microsoft JhengHei', Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2c3e50; border-bottom: 2px solid #10b981; padding-bottom: 10px;">🆕 有新的土地投稿待審核</h2>
+
+        <h3 style="margin-top: 24px; color: #2c3e50;">案件資訊</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 8px;">
+          ${row("案件編號", post._id, true)}
+          ${row("案件類型", TYPE_MAP[post.type] || post.type)}
+          ${row("土地類型", landTypeText, true)}
+          ${row("位置", location)}
+          ${row("地號", landNumbersText, true)}
+          ${row("概略位置", post.approximateLocation || "-")}
+          ${row("面積", area, true)}
+          ${row("土地持分", landShareText)}
+          ${row("地主人數", ownerCountText, true)}
+          ${row("容積率", farText)}
+          ${row("建蔽率", bcrText, true)}
+          ${row("面寬", frontageText)}
+          ${row("縱深", depthText, true)}
+          ${row("臨路條件", post.roadCondition || "-")}
+          ${row("土地現況", post.landCondition || "-", true)}
+          ${row("說明", post.description || "-")}
+          ${row("開價（總）", post.priceBudget || "-", true)}
+          ${row("單價", unitPriceText)}
+          ${row("直接對所有權人/買方", directOwnerText, true)}
+          ${row("公開範圍", visibilityLabel)}
+          ${row("狀態", post.status)}
+          ${row("送出時間", createdAt, true)}
+        </table>
+
+        <h3 style="margin-top: 24px; color: #2c3e50;">聯絡資訊</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 8px;">
+          ${row("聯絡人", post.contactName || "-", true)}
+          ${row("聯絡電話", post.contactPhone || "未提供")}
+          ${row("Line ID", post.contactLine || "未提供", true)}
+        </table>
+
+        <p style="color: #7f8c8d; font-size: 12px; margin-top: 20px;">此為系統自動通知信，請至後台審核此投稿。</p>
+      </div>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+}
 
 /**
  * 建立土地投稿
@@ -365,6 +563,11 @@ const createLandPost = async (req, res) => {
     userId,
     status: "pending",
     version: 1,
+  });
+
+  // 即時通知管理員有新投稿（背景寄送，不阻塞回應、寄信失敗不影響投稿建立）
+  sendNewPostNotificationEmail({ post }).catch((mailErr) => {
+    console.error("[land-post] 新投稿通知信寄送失敗:", mailErr);
   });
 
   return sendSuccess(res, post, 201);
@@ -551,9 +754,9 @@ const getPublicLandPosts = async (req, res) => {
 
   const sortOrder = req.query.sort === "oldest" ? 1 : -1;
 
-  // 僅取公開頁需要的欄位，避免回傳 __v/version/idempotencyKey/agreedToTerms/visibility 等
+  // 僅取公開頁需要的欄位，避免回傳 __v/version/idempotencyKey/agreedToTerms/agreedToPrivacy/visibility 等
   const PUBLIC_FIELDS =
-    "type landType contactName city district publicTitle section landNumbers approximateLocation landArea landAreaUnit landCondition description priceBudget hasAuthorizationLetter images status publicSlug createdAt updatedAt userId";
+    "type landType contactName city district publicTitle section landNumbers approximateLocation landArea landAreaUnit landShareNumerator landShareDenominator landOwnerCount floorAreaRatio buildingCoverageRatio frontageWidth lotDepth roadCondition landCondition description priceBudget unitPrice hasAuthorizationLetter images status publicSlug createdAt updatedAt userId";
 
   const [posts, total] = await Promise.all([
     LandPost.find(query, PUBLIC_FIELDS)
@@ -803,27 +1006,13 @@ const interestSchema = Joi.object({
 }, "phone-or-line");
 
 async function sendInterestNotificationEmail({ interest, post }) {
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: "touchingdevelopment.service@gmail.com",
-      pass: process.env.GMAIL_PASSWORD,
-    },
-  });
+  const transporter = createMailTransporter();
 
   const createdAt = new Date(interest.createdAt).toLocaleString("zh-TW", {
     timeZone: "Asia/Taipei",
   });
 
-  const typeMap = {
-    sell: "出售",
-    rent: "出租",
-    buy: "土地購入",
-    joint_development: "合建",
-    asset_lease: "資產租賃",
-    hotel_building_sale: "飯店/建物整棟出售",
-    other: "其他",
-  };
+  const typeMap = TYPE_MAP;
 
   const postLocation = `${post.city || ""}${post.district || ""}${post.section ? " " + post.section : ""}`;
   const postArea = post.landArea ? `${post.landArea} 坪` : "-";
@@ -1012,4 +1201,7 @@ module.exports = {
   adminDeleteLandPost,
   createInterest,
   getMyInterests,
+  // 匯出驗證 schema 供測試腳本使用（不影響路由）
+  createLandPostSchema,
+  updateLandPostSchema,
 };
