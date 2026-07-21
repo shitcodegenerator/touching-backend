@@ -205,6 +205,15 @@ const landPostSchema = new mongoose.Schema(
       index: true,
       sparse: true,
     },
+    // 部署環境標記：Vercel Production 前端投稿為 "prod"、Preview(qat 分支)為 "qat"。
+    // 由前端 BFF 代理依 VERCEL_ENV 於 query 注入，後端據此隔離資料：
+    // 正式站公開端點只回 env≠"qat"（含缺此欄位的既有文件），QAT 只回 env="qat"。
+    env: {
+      type: String,
+      enum: ["prod", "qat"],
+      default: "prod",
+      index: true,
+    },
   },
   { timestamps: true },
 );

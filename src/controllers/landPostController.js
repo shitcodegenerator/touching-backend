@@ -86,6 +86,21 @@ const applyTypeAndPingFilters = (filter, q) => {
   return filter;
 };
 
+/**
+ * 依請求環境套用 env 隔離篩選到 mongo filter（就地修改並回傳）。
+ * 前端 BFF 代理依 Vercel 部署環境於 query 注入 env：Production=prod、Preview(qat)=qat。
+ * - 正式站（env 非 "qat"，含未帶 env 的舊前端請求）：只回 env≠"qat"，含缺此欄位的既有文件
+ * - QAT（env="qat"）：只回 env="qat"，測試資料不外洩到正式站
+ */
+const applyEnvFilter = (filter, q) => {
+  if (q && q.env === "qat") {
+    filter.env = "qat";
+  } else {
+    filter.env = { $ne: "qat" };
+  }
+  return filter;
+};
+
 // XSS sanitize helper — 移除危險字元，不做 HTML entity encode（避免存入 DB 後被前端雙重 escape）
 const sanitizeText = (text) => {
   if (!text) return text;
@@ -558,11 +573,15 @@ const createLandPost = async (req, res) => {
 
   const sanitized = sanitizeBody(value);
 
+  // 依前端 BFF 注入的部署環境標記資料（QAT 測試資料與正式站隔離）
+  const env = req.query.env === "qat" ? "qat" : "prod";
+
   const post = await LandPost.create({
     ...sanitized,
     userId,
     status: "pending",
     version: 1,
+    env,
   });
 
   // 即時通知管理員有新投稿（背景寄送，不阻塞回應、寄信失敗不影響投稿建立）
@@ -639,7 +658,14 @@ const getLandPost = async (req, res) => {
     return sendSuccess(res, postObj);
   }
 
-  if (post.status !== "approved" || post.visibility !== "platform_public") {
+  // 部署環境隔離：非擁有者僅能看到與請求環境相符的案件（正式站看不到 QAT 測試資料）
+  const reqEnv = req.query.env === "qat" ? "qat" : "prod";
+  const postEnv = post.env === "qat" ? "qat" : "prod";
+  if (
+    post.status !== "approved" ||
+    post.visibility !== "platform_public" ||
+    postEnv !== reqEnv
+  ) {
     return sendError(res, "找不到該案件", 404);
   }
 
@@ -752,6 +778,9 @@ const getPublicLandPosts = async (req, res) => {
   // 類型 + 坪數範圍篩選（與筆數聚合共用同一份邏輯，確保地圖筆數與列表一致）
   applyTypeAndPingFilters(query, req.query);
 
+  // 部署環境隔離：正式站排除 QAT 測試資料
+  applyEnvFilter(query, req.query);
+
   const sortOrder = req.query.sort === "oldest" ? 1 : -1;
 
   // 僅取公開頁需要的欄位，避免回傳 __v/version/idempotencyKey/agreedToTerms/agreedToPrivacy/visibility 等
@@ -795,6 +824,9 @@ const getPublicLandPostStats = async (req, res) => {
     { status: "approved", visibility: "platform_public" },
     req.query,
   );
+
+  // 部署環境隔離：正式站地圖筆數排除 QAT 測試資料（與公開列表一致）
+  applyEnvFilter(match, req.query);
 
   const rows = await LandPost.aggregate([
     { $match: match },
@@ -840,11 +872,16 @@ const getPublicLandPostBySlug = async (req, res) => {
     return sendError(res, "缺少 slug", 400);
   }
 
-  const post = await LandPost.findOne({
-    publicSlug: slug,
-    status: "approved",
-    visibility: "platform_public",
-  }).populate("userId", "username");
+  const post = await LandPost.findOne(
+    applyEnvFilter(
+      {
+        publicSlug: slug,
+        status: "approved",
+        visibility: "platform_public",
+      },
+      req.query,
+    ),
+  ).populate("userId", "username");
 
   if (!post) {
     return sendError(res, "找不到該案件", 404);
@@ -866,11 +903,14 @@ const getPublicLandPostBySlug = async (req, res) => {
  */
 const getPublicLandPostSlugs = async (req, res) => {
   const items = await LandPost.find(
-    {
-      status: "approved",
-      visibility: "platform_public",
-      publicSlug: { $exists: true, $ne: null },
-    },
+    applyEnvFilter(
+      {
+        status: "approved",
+        visibility: "platform_public",
+        publicSlug: { $exists: true, $ne: null },
+      },
+      req.query,
+    ),
     { publicSlug: 1, updatedAt: 1, _id: 0 },
   ).lean();
 
