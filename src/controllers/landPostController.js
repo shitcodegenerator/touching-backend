@@ -938,6 +938,8 @@ const adminListLandPosts = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
+      // 帶出投稿會員的帳號資訊，供後台「聯絡人」彈窗顯示（僅後台可見，不外洩公開端點）
+      .populate("userId", "name username email mobile")
       .lean(),
     LandPost.countDocuments(filter),
   ]);
@@ -1021,6 +1023,82 @@ const adminDeleteLandPost = async (req, res) => {
   await LandPost.findByIdAndDelete(id);
 
   return sendSuccess(res, null, 200, null, "已成功刪除投稿");
+};
+
+/**
+ * 意見回覆通知信：寄給投稿會員註冊信箱 + dontz3210@gmail.com（去重、略過空值）。
+ * 寄信失敗不影響回覆建立（背景寄送）。
+ */
+async function sendReviewReplyEmail({ post, memberEmail, reply }) {
+  const recipients = [...new Set([memberEmail, "dontz3210@gmail.com"])].filter(
+    (e) => typeof e === "string" && e.trim(),
+  );
+  if (recipients.length === 0) return;
+
+  const transporter = createMailTransporter();
+  const location = `${post.city || ""}${post.district || ""}${post.section ? " " + post.section : ""}`;
+  const repliedAt = new Date(reply.createdAt).toLocaleString("zh-TW", {
+    timeZone: "Asia/Taipei",
+  });
+  const safeContent = sanitizeText(reply.content).replace(/\n/g, "<br>");
+
+  const mailOptions = {
+    from: "踏取國際開發有限公司 <touchingdevelopment.service@gmail.com>",
+    to: recipients.join(", "),
+    subject: `【土地案件審核回覆】${TYPE_MAP[post.type] || post.type}｜${location || "您的案件"}`,
+    html: `
+      <div style="font-family: 'Microsoft JhengHei', Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2c3e50; border-bottom: 2px solid #10b981; padding-bottom: 10px;">📝 您的土地案件有新的審核回覆</h2>
+        <p style="color: #475569;">案件：${TYPE_MAP[post.type] || post.type}｜${location || "-"}（目前仍為審核中）</p>
+        <div style="margin-top: 16px; padding: 16px; background: #f1f5f9; border-left: 4px solid #10b981; border-radius: 4px;">
+          <p style="margin: 0 0 8px; color: #64748b; font-size: 13px;">${reply.reviewerName || "踏取審核人員"}　${repliedAt}</p>
+          <p style="margin: 0; color: #1f2937; white-space: pre-wrap;">${safeContent}</p>
+        </div>
+        <p style="margin-top: 20px; color: #475569;">如需補充或修改資料，請登入會員中心「我的土地案件」進行編輯後再次送出，審核人員將重新檢視。</p>
+      </div>`,
+  };
+
+  await transporter.sendMail(mailOptions);
+}
+
+/**
+ * [Admin] 意見回覆：審核人員回覆投稿者，案件狀態維持不變（仍為 pending）。
+ * 回覆記錄到 reviewReplies 歷史，並寄信通知會員。
+ */
+const adminReplyLandPost = async (req, res) => {
+  const { id } = req.params;
+  const { content, reviewerName } = req.body;
+
+  if (!content || !content.trim()) {
+    return sendError(res, "回覆內容為必填", 400);
+  }
+
+  const post = await LandPost.findById(id).populate("userId", "email");
+  if (!post) {
+    return sendError(res, "找不到該投稿", 404);
+  }
+
+  const reply = {
+    content: sanitizeText(content).slice(0, 1000),
+    reviewerName: reviewerName
+      ? sanitizeText(reviewerName).slice(0, 30)
+      : "踏取審核人員",
+    createdAt: new Date(),
+  };
+
+  if (!Array.isArray(post.reviewReplies)) post.reviewReplies = [];
+  post.reviewReplies.push(reply);
+  await post.save();
+
+  // 背景寄送通知信（會員註冊信箱 + dontz3210），失敗不影響回覆建立
+  const memberEmail = post.userId?.email;
+  sendReviewReplyEmail({ post, memberEmail, reply }).catch((mailErr) => {
+    console.error("[land-post] 意見回覆通知信寄送失敗:", mailErr);
+  });
+
+  const result = post.toObject();
+  result.userId = post.userId?._id || null;
+  return sendSuccess(res, result);
 };
 
 // ============ 我有興趣 ============
@@ -1238,6 +1316,7 @@ module.exports = {
   adminListLandPosts,
   adminApproveLandPost,
   adminRejectLandPost,
+  adminReplyLandPost,
   adminDeleteLandPost,
   createInterest,
   getMyInterests,

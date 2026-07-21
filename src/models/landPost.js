@@ -175,6 +175,22 @@ const landPostSchema = new mongoose.Schema(
     reviewNote: {
       type: String,
     },
+    // 內部人員「意見回覆」歷史（可多次）。與 reviewNote（核准/駁回備註）分離：
+    // 意見回覆不改變案件狀態（仍為 pending），供審核人員與投稿者往返溝通。
+    reviewReplies: {
+      type: [
+        {
+          content: { type: String, required: true, maxlength: 1000 },
+          reviewerName: {
+            type: String,
+            default: "踏取審核人員",
+            maxlength: 30,
+          },
+          createdAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: undefined,
+    },
     publicSlug: {
       type: String,
       unique: true,
