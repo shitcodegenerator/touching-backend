@@ -9,6 +9,7 @@ const {
   deleteObjects,
 } = require("../utils/r2Client.js");
 const { sendSuccess, sendError } = require("../utils/response.js");
+const { brandEmailLayout } = require("../email/brandLayout.js");
 
 const OFFICIAL_USERNAME = "touching_admin";
 const OFFICIAL_DISPLAY_NAME = "踏取官方";
@@ -1042,20 +1043,29 @@ async function sendReviewReplyEmail({ post, memberEmail, reply }) {
   });
   const safeContent = sanitizeText(reply.content).replace(/\n/g, "<br>");
 
+  const bodyHtml = `
+    <p style="margin: 0 0 16px;">
+      案件：<strong>${TYPE_MAP[post.type] || post.type}</strong>｜${location || "-"}
+      <span style="color: #f59e0b;">（目前仍為審核中）</span>
+    </p>
+    <div style="margin: 0 0 18px; padding: 16px; background: #f1f5f9; border-left: 4px solid #10b981; border-radius: 6px;">
+      <p style="margin: 0 0 8px; color: #64748b; font-size: 13px;">${reply.reviewerName || "踏取審核人員"}　${repliedAt}</p>
+      <p style="margin: 0; color: #1f2937; white-space: pre-wrap;">${safeContent}</p>
+    </div>
+    <p style="margin: 0; color: #475569;">如需補充或修改資料，請登入會員中心「我的土地案件」進行編輯後再次送出，審核人員將重新檢視。</p>`;
+
   const mailOptions = {
     from: "踏取國際開發有限公司 <touchingdevelopment.service@gmail.com>",
     to: recipients.join(", "),
     subject: `【土地案件審核回覆】${TYPE_MAP[post.type] || post.type}｜${location || "您的案件"}`,
-    html: `
-      <div style="font-family: 'Microsoft JhengHei', Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #2c3e50; border-bottom: 2px solid #10b981; padding-bottom: 10px;">📝 您的土地案件有新的審核回覆</h2>
-        <p style="color: #475569;">案件：${TYPE_MAP[post.type] || post.type}｜${location || "-"}（目前仍為審核中）</p>
-        <div style="margin-top: 16px; padding: 16px; background: #f1f5f9; border-left: 4px solid #10b981; border-radius: 4px;">
-          <p style="margin: 0 0 8px; color: #64748b; font-size: 13px;">${reply.reviewerName || "踏取審核人員"}　${repliedAt}</p>
-          <p style="margin: 0; color: #1f2937; white-space: pre-wrap;">${safeContent}</p>
-        </div>
-        <p style="margin-top: 20px; color: #475569;">如需補充或修改資料，請登入會員中心「我的土地案件」進行編輯後再次送出，審核人員將重新檢視。</p>
-      </div>`,
+    html: brandEmailLayout({
+      title: "您的土地案件有新的審核回覆",
+      bodyHtml,
+      cta: {
+        url: "https://touching-dev.com/member/land-posts",
+        text: "前往我的土地案件",
+      },
+    }),
   };
 
   await transporter.sendMail(mailOptions);
