@@ -259,9 +259,15 @@ const createLandPostSchema = Joi.object({
     .messages({
       "number.max": "建蔽率最多 3 位數",
     }),
-  frontageWidth: Joi.number().min(0).precision(2).optional().messages({
-    "number.min": "面寬不能為負數",
-  }),
+  frontageWidth: Joi.alternatives()
+    .try(
+      Joi.number().min(0).precision(2),
+      Joi.string().trim().max(30).allow(""),
+    )
+    .optional()
+    .messages({
+      "alternatives.match": "面寬格式不正確",
+    }),
   lotDepth: Joi.number().min(0).precision(2).optional().messages({
     "number.min": "縱深不能為負數",
   }),
@@ -351,7 +357,12 @@ const updateLandPostSchema = Joi.object({
   landOwnerCount: Joi.number().integer().min(1).max(999).optional(),
   floorAreaRatio: Joi.number().integer().min(0).max(999).optional(),
   buildingCoverageRatio: Joi.number().integer().min(0).max(999).optional(),
-  frontageWidth: Joi.number().min(0).precision(2).optional(),
+  frontageWidth: Joi.alternatives()
+    .try(
+      Joi.number().min(0).precision(2),
+      Joi.string().trim().max(30).allow(""),
+    )
+    .optional(),
   lotDepth: Joi.number().min(0).precision(2).optional(),
   roadCondition: Joi.string().trim().max(20).allow("").optional(),
   landCondition: Joi.string().trim().max(200).allow("").optional(),

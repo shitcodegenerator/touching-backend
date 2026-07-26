@@ -99,10 +99,11 @@ const landPostSchema = new mongoose.Schema(
       type: Number,
       min: 0,
     },
-    // 面寬（純數字，允許小數 2 位）
+    // 面寬（文字）。多數為單一數字（米），但允許複合值（如「128米/43米」），
+    // 故用字串不限數字；表單一般仍以數字輸入，API 亦接受純數字。
     frontageWidth: {
-      type: Number,
-      min: 0,
+      type: String,
+      maxlength: 30,
     },
     // 縱深（純數字，允許小數 2 位）
     lotDepth: {
