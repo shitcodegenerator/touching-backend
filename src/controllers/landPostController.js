@@ -165,7 +165,9 @@ const AREA_UNIT_LABEL = { ping: "坪", sqm: "平方公尺", hectare: "公頃" };
  * 案件編號不在這裡算 —— 由前站的 formatListingCode(listing.id) 統一換算，規則只留一份。
  */
 const buildLineNotifyData = (post) => ({
-  memberId: String(post.userId || ""),
+  // post.userId 在 adminApproveLandPost 是未 populate 的 ObjectId，
+  // 在 adminReplyLandPost 是 populate 過的 user 文件（見上面 populate("userId", "email")）—— 兩種都要取到純 id 字串
+  memberId: String((post.userId && post.userId._id) || post.userId || ""),
   listing: {
     id: String(post._id),
     slug: post.publicSlug || "",
