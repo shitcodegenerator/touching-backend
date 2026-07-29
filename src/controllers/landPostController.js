@@ -10,6 +10,10 @@ const {
 } = require("../utils/r2Client.js");
 const { sendSuccess, sendError } = require("../utils/response.js");
 const { brandEmailLayout } = require("../email/brandLayout.js");
+const {
+  notifyListingApproved,
+  notifyListingNeedInfo,
+} = require("../utils/notifySite.js");
 
 const OFFICIAL_USERNAME = "touching_admin";
 const OFFICIAL_DISPLAY_NAME = "踏取官方";
@@ -154,6 +158,28 @@ const LAND_TYPE_LABEL = {
 
 // 面積單位代碼 → 中文標籤（通知信共用）
 const AREA_UNIT_LABEL = { ping: "坪", sqm: "平方公尺", hectare: "公頃" };
+
+/**
+ * 組出「案件事件通知」要送往前站的公開欄位 payload。
+ * ⚠️ 只放公開欄位：不得加入 contactName / phone / lineId / email。
+ * 案件編號不在這裡算 —— 由前站的 formatListingCode(listing.id) 統一換算，規則只留一份。
+ */
+const buildLineNotifyData = (post) => ({
+  memberId: String(post.userId || ""),
+  listing: {
+    id: String(post._id),
+    slug: post.publicSlug || "",
+    city: post.city || "",
+    district: post.district || "",
+    landType: Array.isArray(post.landType)
+      ? post.landType.map((t) => LAND_TYPE_LABEL[t] || t).join("、")
+      : LAND_TYPE_LABEL[post.landType] || post.landType || "",
+    area:
+      post.landArea != null
+        ? `${post.landArea} ${AREA_UNIT_LABEL[post.landAreaUnit] || "坪"}`
+        : "",
+  },
+});
 
 // 新投稿即時通知收件人（管理員）
 const NEW_POST_NOTIFY_RECIPIENTS = [
@@ -978,6 +1004,9 @@ const adminApproveLandPost = async (req, res) => {
   if (reviewNote) post.reviewNote = sanitizeText(reviewNote);
   await post.save();
 
+  // 射後不理：通知失敗不影響審核結果（見 src/utils/notifySite.js）
+  notifyListingApproved(buildLineNotifyData(post));
+
   return sendSuccess(res, post.toObject());
 };
 
@@ -1116,6 +1145,8 @@ const adminReplyLandPost = async (req, res) => {
   sendReviewReplyEmail({ post, memberEmail, reply }).catch((mailErr) => {
     console.error("[land-post] 意見回覆通知信寄送失敗:", mailErr);
   });
+
+  notifyListingNeedInfo(buildLineNotifyData(post));
 
   const result = post.toObject();
   result.userId = post.userId?._id || null;
