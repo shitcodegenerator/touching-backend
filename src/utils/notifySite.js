@@ -9,11 +9,21 @@
  * 4. **只送公開欄位**：payload 不得含地主姓名、電話、LINE ID、email。
  */
 
-const TIMEOUT_MS = 5000;
+// notify 是輕量 API 呼叫；warm 要冷啟動 Satori/resvg 產圖，設計工作時間 10–20s（見
+// server/api/og/warm.post.ts 檔頭），5 秒逾時幾乎必然 abort。兩者分開設定，
+// 呼叫端本來就不 await，Zeabur 長駐 Express 多等 20 秒沒有代價，不影響審核 API 回應時間。
+const NOTIFY_TIMEOUT_MS = 5000;
+const WARM_TIMEOUT_MS = 25000;
 
-const baseUrl = () => (process.env.SITE_NOTIFY_BASE_URL || "").replace(/\/+$/, "");
+const baseUrl = () =>
+  (process.env.SITE_NOTIFY_BASE_URL || "").replace(/\/+$/, "");
 
-const postJson = async (path, body, headers = {}) => {
+const postJson = async (
+  path,
+  body,
+  headers = {},
+  timeoutMs = NOTIFY_TIMEOUT_MS,
+) => {
   const base = baseUrl();
   if (!base) return;
 
@@ -22,7 +32,7 @@ const postJson = async (path, body, headers = {}) => {
       method: "POST",
       headers: { "content-type": "application/json", ...headers },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     const text = await res.text();
     console.info(`[notifySite] ${path} → ${res.status} ${text.slice(0, 200)}`);
@@ -38,16 +48,22 @@ const notifyLine = (kind, data) => {
   return postJson(
     "/api/line/notify",
     { memberId: data.memberId, kind, listing: data.listing },
-    { "x-internal-token": token }
+    { "x-internal-token": token },
   );
 };
 
 // 沒有 publicSlug 表示還沒有公開頁，沒有圖可預熱
-const warmShareImage = (slug) => (slug ? postJson("/api/og/warm", { slug }) : Promise.resolve());
+const warmShareImage = (slug) =>
+  slug
+    ? postJson("/api/og/warm", { slug }, {}, WARM_TIMEOUT_MS)
+    : Promise.resolve();
 
 /** 審核通過：推播 + 即時預熱分享圖 */
 const notifyListingApproved = (data) =>
-  Promise.all([notifyLine("approved", data), warmShareImage(data.listing && data.listing.slug)]);
+  Promise.all([
+    notifyLine("approved", data),
+    warmShareImage(data.listing && data.listing.slug),
+  ]);
 
 /** 意見回覆／需補件：只推播（案件仍為 pending，沒有公開頁） */
 const notifyListingNeedInfo = (data) => notifyLine("needInfo", data);
