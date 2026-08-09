@@ -9,6 +9,7 @@ const {
   deleteObjects,
 } = require("../utils/r2Client.js");
 const { sendSuccess, sendError } = require("../utils/response.js");
+const { isValidObjectId } = require("../utils/objectId.js");
 const { brandEmailLayout } = require("../email/brandLayout.js");
 const {
   notifyListingApproved,
@@ -679,6 +680,10 @@ const applyPublicDisplayFields = (postObj, ownerUsername) => {
  */
 const getLandPost = async (req, res) => {
   const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    return sendError(res, "找不到該案件", 404);
+  }
+
   const post = await LandPost.findById(id).populate("userId", "username");
 
   if (!post) {
@@ -994,6 +999,10 @@ const adminApproveLandPost = async (req, res) => {
   const { id } = req.params;
   const { reviewNote } = req.body;
 
+  if (!isValidObjectId(id)) {
+    return sendError(res, "找不到該案件", 404);
+  }
+
   const post = await LandPost.findById(id);
   if (!post) {
     return sendError(res, "找不到該投稿", 404);
@@ -1023,6 +1032,10 @@ const adminRejectLandPost = async (req, res) => {
     return sendError(res, "駁回需填寫原因", 400);
   }
 
+  if (!isValidObjectId(id)) {
+    return sendError(res, "找不到該案件", 404);
+  }
+
   const post = await LandPost.findById(id);
   if (!post) {
     return sendError(res, "找不到該投稿", 404);
@@ -1049,6 +1062,10 @@ const adminRejectLandPost = async (req, res) => {
  */
 const adminDeleteLandPost = async (req, res) => {
   const { id } = req.params;
+
+  if (!isValidObjectId(id)) {
+    return sendError(res, "找不到該案件", 404);
+  }
 
   const post = await LandPost.findById(id);
   if (!post) {
@@ -1123,6 +1140,10 @@ const adminReplyLandPost = async (req, res) => {
 
   if (!content || !content.trim()) {
     return sendError(res, "回覆內容為必填", 400);
+  }
+
+  if (!isValidObjectId(id)) {
+    return sendError(res, "找不到該案件", 404);
   }
 
   const post = await LandPost.findById(id).populate("userId", "email");
@@ -1273,6 +1294,10 @@ const createInterest = async (req, res) => {
     const detail = error.details[0];
     const message = detail.context?.message || detail.message || "表單驗證失敗";
     return sendError(res, message, 400);
+  }
+
+  if (!isValidObjectId(id)) {
+    return sendError(res, "找不到該案件", 404);
   }
 
   const post = await LandPost.findById(id);
