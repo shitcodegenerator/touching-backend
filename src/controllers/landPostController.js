@@ -31,6 +31,8 @@ const PING_PER_HECTARE = 3025;
 
 const PUBLIC_FIELDS =
   "type landType contactName city district publicTitle section landNumbers approximateLocation landArea landAreaUnit landShareNumerator landShareDenominator landOwnerCount floorAreaRatio buildingCoverageRatio frontageWidth lotDepth roadCondition landCondition description priceBudget unitPrice hasAuthorizationLetter landNumberVerified authorizationLetterVerified images status publicSlug createdAt updatedAt userId";
+const MEMBER_FIELDS = `${PUBLIC_FIELDS} directOwnerContact visibility contactPhone contactLine reviewNote reviewReplies version lastEditedAt env`;
+const PUBLIC_FIELD_NAMES = ["_id", ...PUBLIC_FIELDS.split(" ")];
 
 // 把不同單位的 landArea 換算成「坪」的聚合運算式（公開列表與筆數聚合共用）
 const PING_EXPR = {
@@ -651,7 +653,10 @@ const getMyLandPosts = async (req, res) => {
   const skip = (page - 1) * limit;
 
   const [posts, total] = await Promise.all([
-    LandPost.find({ userId }).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    LandPost.find({ userId }, MEMBER_FIELDS)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
     LandPost.countDocuments({ userId }),
   ]);
 
@@ -684,6 +689,18 @@ const applyPublicDisplayFields = (postObj, ownerUsername) => {
 };
 
 /**
+ * 將任意土地案件物件收斂成公開 API 白名單，避免新增內部欄位時意外外洩。
+ */
+const toPublicLandPost = (postObj, ownerUsername) => {
+  const publicPost = {};
+  for (const field of PUBLIC_FIELD_NAMES) {
+    if (Object.hasOwn(postObj, field)) publicPost[field] = postObj[field];
+  }
+  publicPost.userId = postObj.userId?._id || postObj.userId || null;
+  return applyPublicDisplayFields(publicPost, ownerUsername);
+};
+
+/**
  * 取得單筆投稿（雙模式：擁有者 / 公開）
  */
 const getLandPost = async (req, res) => {
@@ -692,7 +709,10 @@ const getLandPost = async (req, res) => {
     return sendError(res, "找不到該案件", 404);
   }
 
-  const post = await LandPost.findById(id).populate("userId", "username");
+  const post = await LandPost.findById(id, MEMBER_FIELDS).populate(
+    "userId",
+    "username",
+  );
 
   if (!post) {
     return sendError(res, "找不到該案件", 404);
@@ -722,8 +742,7 @@ const getLandPost = async (req, res) => {
     return sendError(res, "找不到該案件", 404);
   }
 
-  applyPublicDisplayFields(postObj, ownerUsername);
-  return sendSuccess(res, postObj);
+  return sendSuccess(res, toPublicLandPost(postObj, ownerUsername));
 };
 
 /**
@@ -1139,6 +1158,7 @@ const adminUpdateLandPostVerification = async (req, res) => {
     );
     await post.save();
   }
+  await post.populate("userId", "name username email mobile");
   return sendSuccess(res, post.toObject());
 };
 

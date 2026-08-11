@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "test": "node --test src/utils/landPostVerification.test.js"
+    "test": "node --test src/**/*.test.js"
   },
   "engines": {
     "node": "20.x"
