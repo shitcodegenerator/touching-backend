@@ -847,7 +847,11 @@ const getPublicLandPosts = async (req, res) => {
   ]);
 
   const filteredPosts = posts.map((post) => {
-    const postObj = { ...post };
+    const postObj = {
+      ...post,
+      landNumberVerified: post.landNumberVerified ?? false,
+      authorizationLetterVerified: post.authorizationLetterVerified ?? false,
+    };
     const ownerUsername = postObj.userId?.username;
     postObj.userId = postObj.userId?._id || null;
     return applyPublicDisplayFields(postObj, ownerUsername);
@@ -1066,6 +1070,11 @@ const adminRejectLandPost = async (req, res) => {
     return sendError(res, "該投稿已駁回", 400);
   }
 
+  const before = {
+    landNumberVerified: post.landNumberVerified ?? false,
+    authorizationLetterVerified: post.authorizationLetterVerified ?? false,
+  };
+  const after = { ...before };
   post.status = "rejected";
   post.reviewNote = sanitizeText(reviewNote);
   post.reviewLogs = post.reviewLogs || [];
@@ -1073,6 +1082,8 @@ const adminRejectLandPost = async (req, res) => {
     createReviewLog({
       action: "rejected",
       operator: req.userData,
+      before,
+      after,
     }),
   );
   await post.save();
