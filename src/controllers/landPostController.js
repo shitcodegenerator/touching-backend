@@ -711,7 +711,7 @@ const getLandPost = async (req, res) => {
 
   const post = await LandPost.findById(id, MEMBER_FIELDS).populate(
     "userId",
-    "username",
+    "username email",
   );
 
   if (!post) {
@@ -719,6 +719,7 @@ const getLandPost = async (req, res) => {
   }
 
   const ownerUsername = post.userId?.username;
+  const ownerEmail = post.userId?.email || "";
   const ownerId = post.userId?._id?.toString();
 
   const isOwner = req.userData && req.userData.userId === ownerId;
@@ -728,6 +729,7 @@ const getLandPost = async (req, res) => {
 
   if (isOwner) {
     postObj.isOfficial = ownerUsername === OFFICIAL_USERNAME;
+    postObj.memberEmail = ownerEmail;
     return sendSuccess(res, postObj);
   }
 

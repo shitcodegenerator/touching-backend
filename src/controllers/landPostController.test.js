@@ -36,7 +36,7 @@ const internalFields = {
 
 const publicPostData = (overrides = {}) => ({
   _id: POST_ID,
-  userId: { _id: OWNER_ID, username: "owner" },
+  userId: { _id: OWNER_ID, username: "owner", email: "owner@example.com" },
   type: "sell",
   contactName: "王小明",
   contactPhone: "0912345678",
@@ -164,6 +164,7 @@ test("匿名與非擁有者 GET /land-post/:id 僅回傳公開白名單欄位", 
     assert.equal(body.data.authorizationLetterVerified, false);
     assert.equal(body.data.contactPhone, undefined);
     assert.equal(body.data.contactLine, undefined);
+    assert.equal(body.data.memberEmail, undefined);
     assertNoInternalFields(body.data);
   }
 });
@@ -236,6 +237,8 @@ test("會員的我的投稿列表與單筆擁有者回應不含稽核及隱私�
   assertNoInternalFields(detailResponse.state.body.data);
   assert.equal(detailResponse.state.body.data.contactPhone, "0912345678");
   assert.equal(detailResponse.state.body.data.contactLine, "private-line-id");
+  assert.equal(detailResponse.state.body.data.memberEmail, "owner@example.com");
+  assert.equal(listResponse.state.body.data[0].memberEmail, undefined);
 });
 
 test("verification 管理端 API 在無認證時拒絕請求且不查詢資料", async (t) => {
