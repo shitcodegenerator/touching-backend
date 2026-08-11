@@ -63,6 +63,11 @@ router.patch(
   landPostController.adminRejectLandPost,
 );
 router.patch(
+  "/admin/:id/verification",
+  authenticateAdmin,
+  landPostController.adminUpdateLandPostVerification,
+);
+router.patch(
   "/admin/:id/reply",
   authenticateAdmin,
   landPostController.adminReplyLandPost,

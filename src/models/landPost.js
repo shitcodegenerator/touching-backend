@@ -138,6 +138,39 @@ const landPostSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    landNumberVerified: {
+      type: Boolean,
+      default: false,
+    },
+    authorizationLetterVerified: {
+      type: Boolean,
+      default: false,
+    },
+    reviewLogs: {
+      type: [
+        {
+          action: {
+            type: String,
+            enum: ["approved", "rejected", "verification_updated"],
+            required: true,
+          },
+          operator: {
+            userId: { type: String, required: true },
+            username: { type: String, required: true },
+          },
+          before: {
+            landNumberVerified: Boolean,
+            authorizationLetterVerified: Boolean,
+          },
+          after: {
+            landNumberVerified: Boolean,
+            authorizationLetterVerified: Boolean,
+          },
+          createdAt: { type: Date, required: true },
+        },
+      ],
+      default: undefined,
+    },
     // 是否直接對所有權人/買方（依案件類型：租售對地主、購入/承租資產對買方）
     directOwnerContact: {
       type: Boolean,

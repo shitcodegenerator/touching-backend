@@ -15,6 +15,11 @@ const {
   notifyListingApproved,
   notifyListingNeedInfo,
 } = require("../utils/notifySite.js");
+const {
+  parseApprovalVerification,
+  parseVerificationPatch,
+  createReviewLog,
+} = require("../utils/landPostVerification.js");
 
 const OFFICIAL_USERNAME = "touching_admin";
 const OFFICIAL_DISPLAY_NAME = "踏取官方";
@@ -23,6 +28,9 @@ const OFFICIAL_DISPLAY_NAME = "踏取官方";
 // 公開列表的坪數範圍篩選以此把不同單位的 landArea 統一換算後再比較
 const PING_PER_SQM = 0.3025;
 const PING_PER_HECTARE = 3025;
+
+const PUBLIC_FIELDS =
+  "type landType contactName city district publicTitle section landNumbers approximateLocation landArea landAreaUnit landShareNumerator landShareDenominator landOwnerCount floorAreaRatio buildingCoverageRatio frontageWidth lotDepth roadCondition landCondition description priceBudget unitPrice hasAuthorizationLetter landNumberVerified authorizationLetterVerified images status publicSlug createdAt updatedAt userId";
 
 // 把不同單位的 landArea 換算成「坪」的聚合運算式（公開列表與筆數聚合共用）
 const PING_EXPR = {
@@ -828,10 +836,6 @@ const getPublicLandPosts = async (req, res) => {
 
   const sortOrder = req.query.sort === "oldest" ? 1 : -1;
 
-  // 僅取公開頁需要的欄位，避免回傳 __v/version/idempotencyKey/agreedToTerms/agreedToPrivacy/visibility 等
-  const PUBLIC_FIELDS =
-    "type landType contactName city district publicTitle section landNumbers approximateLocation landArea landAreaUnit landShareNumerator landShareDenominator landOwnerCount floorAreaRatio buildingCoverageRatio frontageWidth lotDepth roadCondition landCondition description priceBudget unitPrice hasAuthorizationLetter images status publicSlug createdAt updatedAt userId";
-
   const [posts, total] = await Promise.all([
     LandPost.find(query, PUBLIC_FIELDS)
       .sort({ createdAt: sortOrder })
@@ -849,12 +853,9 @@ const getPublicLandPosts = async (req, res) => {
     return applyPublicDisplayFields(postObj, ownerUsername);
   });
 
-  // 公開列表可被 Vercel 邊緣節點快取。s-maxage 維持 120s 新鮮度；
-  // stale-while-revalidate 拉長到 1 天：只要一天內有人來過，快取就保有一份可立即回傳的舊資料，
-  // 使用者永遠拿到 ~86ms 的 HIT，冷啟動（約 7s）只發生在背景重新驗證、不卡使用者。
   res.set(
     "Cache-Control",
-    "public, s-maxage=120, stale-while-revalidate=86400",
+    "public, s-maxage=60, stale-while-revalidate=300",
   );
   return sendSuccess(res, filteredPosts, 200, { total, page, limit });
 };
@@ -926,6 +927,7 @@ const getPublicLandPostBySlug = async (req, res) => {
       },
       req.query,
     ),
+    PUBLIC_FIELDS,
   ).populate("userId", "username");
 
   if (!post) {
@@ -935,10 +937,9 @@ const getPublicLandPostBySlug = async (req, res) => {
   const postObj = post.toObject();
   const ownerUsername = postObj.userId?.username;
   postObj.userId = postObj.userId?._id || null;
-  // 同列表策略：拉長 SWR，詳情頁也讓使用者永遠拿到快取 HIT，冷啟動只發生在背景重新驗證
   res.set(
     "Cache-Control",
-    "public, s-maxage=120, stale-while-revalidate=86400",
+    "public, s-maxage=60, stale-while-revalidate=300",
   );
   return sendSuccess(res, applyPublicDisplayFields(postObj, ownerUsername));
 };
@@ -1011,7 +1012,28 @@ const adminApproveLandPost = async (req, res) => {
     return sendError(res, "該投稿已核准", 400);
   }
 
+  let after;
+  try {
+    after = parseApprovalVerification(req.body);
+  } catch (error) {
+    return sendError(res, error.message, 400);
+  }
+
+  const before = {
+    landNumberVerified: post.landNumberVerified ?? false,
+    authorizationLetterVerified: post.authorizationLetterVerified ?? false,
+  };
   post.status = "approved";
+  Object.assign(post, after);
+  post.reviewLogs = post.reviewLogs || [];
+  post.reviewLogs.push(
+    createReviewLog({
+      action: "approved",
+      operator: req.userData,
+      before,
+      after,
+    }),
+  );
   if (reviewNote) post.reviewNote = sanitizeText(reviewNote);
   await post.save();
 
@@ -1046,6 +1068,13 @@ const adminRejectLandPost = async (req, res) => {
 
   post.status = "rejected";
   post.reviewNote = sanitizeText(reviewNote);
+  post.reviewLogs = post.reviewLogs || [];
+  post.reviewLogs.push(
+    createReviewLog({
+      action: "rejected",
+      operator: req.userData,
+    }),
+  );
   await post.save();
 
   // 刪除 R2 圖片
@@ -1054,6 +1083,51 @@ const adminRejectLandPost = async (req, res) => {
     deleteObjects(keys).catch(() => {});
   }
 
+  return sendSuccess(res, post.toObject());
+};
+
+/**
+ * [Admin] 更新已核准案件的官方核實標章
+ */
+const adminUpdateLandPostVerification = async (req, res) => {
+  if (!isValidObjectId(req.params.id)) {
+    return sendError(res, "找不到該案件", 404);
+  }
+
+  const post = await LandPost.findById(req.params.id);
+  if (!post) {
+    return sendError(res, "找不到該投稿", 404);
+  }
+  if (post.status !== "approved") {
+    return sendError(res, "僅已核准案件可修改核實標章", 400);
+  }
+
+  let after;
+  try {
+    after = parseVerificationPatch(req.body);
+  } catch (error) {
+    return sendError(res, error.message, 400);
+  }
+  const before = {
+    landNumberVerified: post.landNumberVerified ?? false,
+    authorizationLetterVerified: post.authorizationLetterVerified ?? false,
+  };
+  if (
+    before.landNumberVerified !== after.landNumberVerified ||
+    before.authorizationLetterVerified !== after.authorizationLetterVerified
+  ) {
+    Object.assign(post, after);
+    post.reviewLogs = post.reviewLogs || [];
+    post.reviewLogs.push(
+      createReviewLog({
+        action: "verification_updated",
+        operator: req.userData,
+        before,
+        after,
+      }),
+    );
+    await post.save();
+  }
   return sendSuccess(res, post.toObject());
 };
 
@@ -1395,6 +1469,7 @@ module.exports = {
   adminListLandPosts,
   adminApproveLandPost,
   adminRejectLandPost,
+  adminUpdateLandPostVerification,
   adminReplyLandPost,
   adminDeleteLandPost,
   createInterest,
