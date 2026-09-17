@@ -21,7 +21,7 @@ const ArticleSchema = new mongoose.Schema({
   content: { type: String, required: true },
   image: { type: String, required: true },
   keyword: { type: String, required: false, default: "" },
-  created_at: { type: Date, required: false, default: new Date() },
+  created_at: { type: Date, required: false, default: Date.now },
   modified_at: { type: Date, required: false },
 });
 

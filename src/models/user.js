@@ -16,7 +16,7 @@ const UserSchema = new mongoose.Schema({
     mobile: { type: String, default: '' },
     level: { type: Number, default: 0 },
     subscribe: { type: Boolean, default: true },
-    created_at: { type: Date, required: false, default: new Date() },
+    created_at: { type: Date, required: false, default: Date.now },
     modified_at: { type: Date, required: false },
     type: {type: [mongoose.Schema.Types.ObjectId], ref:'type'},
     resetToken: { type: String, default: '' },
