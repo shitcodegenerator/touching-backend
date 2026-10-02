@@ -25,6 +25,8 @@ const PREVIEW_PATTERNS = [
   /^https:\/\/touching-development-[a-z0-9]+-sherrys-projects-453071e8\.vercel\.app$/,
 ];
 
+const { loggerUtils } = require("../utils/logger.js");
+
 const EXTRA_ORIGINS = (process.env.CORS_EXTRA_ORIGINS || "")
   .split(",")
   .map((s) => s.trim())
@@ -38,10 +40,25 @@ function isAllowedOrigin(origin) {
   return false;
 }
 
+/**
+ * 來源不在白名單是「對方沒有權限」，不是伺服器故障。
+ * 一定要帶 statusCode 403 與 isOperational，否則 errorHandler 會當成 500，
+ * 既誤報錯誤率，也會讓每個掃描機器人都寄一封告警信（告警疲勞）。
+ */
+function createCorsBlockedError(origin) {
+  const error = new Error(`CORS blocked: ${origin}`);
+  error.statusCode = 403;
+  error.code = "CORS_BLOCKED";
+  error.isOperational = true;
+  return error;
+}
+
 const corsOptions = {
   origin(origin, callback) {
     if (isAllowedOrigin(origin)) return callback(null, true);
-    return callback(new Error(`CORS blocked: ${origin}`));
+    // 403 不會進 errorHandler 的錯誤記錄，這裡自己留一筆，之後才查得到誰被擋
+    loggerUtils.logSecurityEvent("CORS_BLOCKED", { origin });
+    return callback(createCorsBlockedError(origin));
   },
   credentials: true,
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
