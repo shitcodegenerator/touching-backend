@@ -20,9 +20,15 @@ const {
   parseVerificationPatch,
   createReviewLog,
 } = require("../utils/landPostVerification.js");
+const { getTaipeiDayStart } = require("../utils/taipeiTime.js");
 
 const OFFICIAL_USERNAME = "touching_admin";
 const OFFICIAL_DISPLAY_NAME = "踏取官方";
+
+// 每位會員同時待審核的投稿上限
+const PENDING_POST_LIMIT = 40;
+// 每位會員每日（台灣時間）可新建的投稿上限
+const DAILY_POST_LIMIT = 40;
 
 // 各面積單位換算成「坪」的係數（1 ㎡ = 0.3025 坪、1 公頃 = 10000 ㎡ = 3025 坪）
 // 公開列表的坪數範圍篩選以此把不同單位的 landArea 統一換算後再比較
@@ -599,17 +605,29 @@ const createLandPost = async (req, res) => {
 
   const userId = req.userData.userId;
 
-  // Daily limit check
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  // 投稿數量限制：待審核筆數上限 + 每日新建上限（以台灣午夜重置）
+  const [pendingCount, todayCount] = await Promise.all([
+    LandPost.countDocuments({ userId, status: "pending" }),
+    LandPost.countDocuments({
+      userId,
+      createdAt: { $gte: getTaipeiDayStart() },
+    }),
+  ]);
 
-  const todayCount = await LandPost.countDocuments({
-    userId,
-    createdAt: { $gte: todayStart },
-  });
+  if (pendingCount >= PENDING_POST_LIMIT) {
+    return sendError(
+      res,
+      `待審核案件已達 ${PENDING_POST_LIMIT} 筆上限，請待審核後再投稿`,
+      429,
+    );
+  }
 
-  if (todayCount >= 5) {
-    return sendError(res, "每日投稿上限為 5 筆，請明日再試", 429);
+  if (todayCount >= DAILY_POST_LIMIT) {
+    return sendError(
+      res,
+      `每日投稿上限為 ${DAILY_POST_LIMIT} 筆，請明日再試`,
+      429,
+    );
   }
 
   // Idempotency check

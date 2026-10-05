@@ -466,3 +466,94 @@ test("核實更新與撤銷會保存 before/after/operator 並回傳 populated u
   assert.equal(populateCalls, 1);
   assert.equal(response.state.body.data.userId.email, "owner@example.com");
 });
+
+const nodemailer = require("nodemailer");
+
+const validCreateBody = () => ({
+  type: "sell",
+  contactName: "王小明",
+  city: "臺北市",
+  district: "中正區",
+  description: "測試投稿",
+  visibility: "platform_public",
+  agreedToTerms: true,
+});
+
+// 依查詢條件回傳不同筆數：status=pending 為待審核數，其餘（含 createdAt）為當日新建數
+const stubCounts = (t, { pending = 0, today = 0 } = {}) => {
+  const filters = [];
+  replaceMethod(t, LandPost, "countDocuments", async (filter) => {
+    filters.push(filter);
+    return filter.status === "pending" ? pending : today;
+  });
+  return filters;
+};
+
+const stubCreate = (t) => {
+  const created = [];
+  replaceMethod(t, LandPost, "create", async (doc) => {
+    created.push(doc);
+    return { _id: POST_ID, createdAt: new Date(), ...doc };
+  });
+  replaceMethod(t, nodemailer, "createTransport", () => ({
+    sendMail: async () => ({}),
+  }));
+  return created;
+};
+
+const callCreate = async () => {
+  const { res, state } = createResponse();
+  await landPostController.createLandPost(
+    { body: validCreateBody(), query: {}, userData: { userId: OWNER_ID } },
+    res,
+  );
+  return state;
+};
+
+test("投稿：待審核與當日皆未達上限時可建立", async (t) => {
+  stubCounts(t, { pending: 39, today: 39 });
+  const created = stubCreate(t);
+
+  const state = await callCreate();
+
+  assert.equal(state.statusCode, 201);
+  assert.equal(created.length, 1);
+});
+
+test("投稿：待審核達 40 筆時回 429 且不建立", async (t) => {
+  const filters = stubCounts(t, { pending: 40, today: 0 });
+  const created = stubCreate(t);
+
+  const state = await callCreate();
+
+  assert.equal(state.statusCode, 429);
+  assert.match(state.body.error, /待審核/);
+  assert.equal(created.length, 0);
+  const pendingFilter = filters.find((f) => f.status === "pending");
+  assert.equal(String(pendingFilter.userId), OWNER_ID);
+});
+
+test("投稿：當日新建達 40 筆時回 429 且不建立", async (t) => {
+  stubCounts(t, { pending: 0, today: 40 });
+  const created = stubCreate(t);
+
+  const state = await callCreate();
+
+  assert.equal(state.statusCode, 429);
+  assert.match(state.body.error, /每日投稿上限為 40 筆/);
+  assert.equal(created.length, 0);
+});
+
+test("投稿：當日計數以台灣午夜為起點", async (t) => {
+  const filters = stubCounts(t, { pending: 0, today: 0 });
+  stubCreate(t);
+
+  await callCreate();
+
+  const dailyFilter = filters.find((f) => f.createdAt);
+  const start = dailyFilter.createdAt.$gte;
+  // 台灣午夜 = UTC 16:00
+  assert.equal(start.getUTCHours(), 16);
+  assert.equal(start.getUTCMinutes(), 0);
+  assert.ok(Date.now() - start.getTime() < 24 * 60 * 60 * 1000);
+});
