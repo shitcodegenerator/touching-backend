@@ -154,8 +154,19 @@ const lineLoginHandler = async (reqBody, res) => {
     setTokenCookie(res, token);
     return sendSuccess(res, { registered: true, message: "註冊成功" });
   } catch (err) {
-    console.log(err);
-    return sendError(res, "註冊失敗，請再試一次。", 400, err);
+    const lineError = err.response?.data;
+    console.log("LINE 登入失敗", lineError || err);
+    // 授權碼已用過或過期（使用者重新整理、返回、瀏覽器還原分頁而重送 code）屬正常情況：
+    // 不帶 error，避免觸發錯誤通知信
+    if (lineError?.error === "invalid_grant") {
+      return sendError(res, "LINE 授權已失效，請重新登入。", 400);
+    }
+    return sendError(
+      res,
+      `註冊失敗，請再試一次。${lineError?.error ? `（LINE：${lineError.error}）` : ""}`,
+      400,
+      err,
+    );
   }
 };
 
