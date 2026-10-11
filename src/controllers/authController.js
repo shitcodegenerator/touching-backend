@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const emailHint = require("../email/subscribealert.js");
 const promoteHint = require("../email/promote.js");
 const { setTokenCookie, clearTokenCookie } = require("../utils/cookie.js");
+const { diagnoseLineLoginError } = require("../utils/lineErrorDiagnosis.js");
 const { sendSuccess, sendError } = require("../utils/response.js");
 
 function generateResetPasswordToken() {
@@ -98,6 +99,8 @@ const lineLoginHandler = async (reqBody, res) => {
       reqBody.redirect_uri || "https://touching-dev.com/login/callback",
   };
 
+  // 記錄目前進行到哪一步，失敗時錯誤信可直接判讀原因
+  let step = "token";
   try {
     const lineRes = await axios.post(
       "https://api.line.me/oauth2/v2.1/token",
@@ -105,6 +108,7 @@ const lineLoginHandler = async (reqBody, res) => {
       { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
     );
 
+    step = "profile";
     const lineProfileRes = await axios.post(
       "https://api.line.me/v2/profile",
       {
@@ -115,6 +119,7 @@ const lineLoginHandler = async (reqBody, res) => {
     );
 
     const userId = lineProfileRes.data.userId;
+    step = "save";
 
     const existingUser = await User.findOne({ line_id: userId }).select(
       "-password",
@@ -154,19 +159,13 @@ const lineLoginHandler = async (reqBody, res) => {
     setTokenCookie(res, token);
     return sendSuccess(res, { registered: true, message: "註冊成功" });
   } catch (err) {
-    const lineError = err.response?.data;
-    console.log("LINE 登入失敗", lineError || err);
-    // 授權碼已用過或過期（使用者重新整理、返回、瀏覽器還原分頁而重送 code）屬正常情況：
-    // 不帶 error，避免觸發錯誤通知信
-    if (lineError?.error === "invalid_grant") {
-      return sendError(res, "LINE 授權已失效，請重新登入。", 400);
-    }
-    return sendError(
-      res,
-      `註冊失敗，請再試一次。${lineError?.error ? `（LINE：${lineError.error}）` : ""}`,
-      400,
-      err,
-    );
+    err.diagnosis = diagnoseLineLoginError(err, step);
+    console.log("LINE 登入失敗", err.diagnosis.title, err.diagnosis.upstream || err.message);
+    const userMessage =
+      err.diagnosis.title === "LINE 授權碼已使用過或已過期"
+        ? "LINE 授權已失效，請重新登入。"
+        : "註冊失敗，請再試一次。";
+    return sendError(res, userMessage, 400, err);
   }
 };
 
