@@ -98,17 +98,40 @@ const buildHtml = ({ method, path, statusCode, message, error, req }) => {
   }
   const stack = error?.stack || (error ? String(error) : "（無例外物件）");
   const pre = "background:#f5f5f5;padding:10px;white-space:pre-wrap;word-break:break-all";
+  const d = error?.diagnosis;
+  const diagnosisHtml = d
+    ? `
+    <div style="border-left:6px solid #d93025;background:#fdecea;padding:12px 16px;margin:12px 0">
+      <h3 style="margin:0 0 8px">🔎 原因判讀：${escapeHtml(d.title)}</h3>
+      <table cellpadding="4" cellspacing="0">
+        <tr><td><b>卡在哪一步</b></td><td>${escapeHtml(d.step)}</td></tr>
+        <tr><td><b>可能原因</b></td><td>${escapeHtml(d.cause)}</td></tr>
+        <tr><td><b>影響</b></td><td>${escapeHtml(d.impact)}</td></tr>
+        <tr><td><b>建議處理</b></td><td>${escapeHtml(d.action)}</td></tr>
+      </table>
+    </div>`
+    : "";
+  // 外部服務（LINE、Google…）實際回了什麼：axios 例外的 response，遮蔽後顯示
+  const upstream = error?.response
+    ? `HTTP ${error.response.status}\n${JSON.stringify(redact(error.response.data ?? {}), null, 2)}`
+    : "";
+  // 經前端 BFF 轉送時，真實 IP／裝置在轉送標頭（否則只會看到內部 IP 與 "node"）
+  const headers = req?.headers || {};
+  const clientIp = String(headers["x-forwarded-for"] || "").split(",")[0].trim() || req?.ip || "";
+  const clientUa = headers["x-client-user-agent"] || headers["user-agent"] || "";
   return `
     <h2>🚨 踏取 API 錯誤通知</h2>
+    ${diagnosisHtml}
     <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse">
       <tr><td><b>時間</b></td><td>${escapeHtml(taiwanTime)}</td></tr>
       <tr><td><b>API</b></td><td><b>${escapeHtml(method)} ${escapeHtml(path)}</b></td></tr>
       <tr><td><b>狀態碼</b></td><td>${escapeHtml(statusCode)}</td></tr>
       <tr><td><b>錯誤訊息</b></td><td>${escapeHtml(message)}</td></tr>
       <tr><td><b>使用者ID</b></td><td>${escapeHtml(req?.userData?.userId || "（未登入/無）")}</td></tr>
-      <tr><td><b>IP</b></td><td>${escapeHtml(req?.ip || req?.headers?.["x-forwarded-for"] || "")}</td></tr>
-      <tr><td><b>User-Agent</b></td><td>${escapeHtml(req?.headers?.["user-agent"] || "")}</td></tr>
+      <tr><td><b>IP</b></td><td>${escapeHtml(clientIp)}</td></tr>
+      <tr><td><b>User-Agent</b></td><td>${escapeHtml(clientUa)}</td></tr>
     </table>
+    ${upstream ? `<h3>外部服務回應</h3><pre style="${pre}">${escapeHtml(upstream)}</pre>` : ""}
     <h3>例外堆疊 / 詳細</h3>
     <pre style="${pre}">${escapeHtml(stack)}</pre>
     <h3>Request Body（已遮蔽敏感欄位）</h3>
@@ -134,7 +157,7 @@ const notifyError = async ({ req, statusCode, message, error } = {}) => {
     const fullUrl = req?.originalUrl || req?.url || "(no-request)";
     const path = String(fullUrl).split("?")[0];
 
-    const key = `${method} ${path} ${statusCode}`;
+    const key = `${method} ${path} ${statusCode} ${error?.diagnosis?.title || ""}`;
     if (isThrottled(key)) return;
 
     const tx = getTransporter();
@@ -143,7 +166,7 @@ const notifyError = async ({ req, statusCode, message, error } = {}) => {
     const mailOptions = {
       from: SENDER,
       to: NOTIFY_EMAIL,
-      subject: `[踏取API錯誤] ${statusCode} ${method} ${path}`,
+      subject: `[踏取API錯誤] ${statusCode} ${method} ${path}${error?.diagnosis?.title ? `｜${error.diagnosis.title}` : ""}`,
       html: buildHtml({ method, path, statusCode, message, error, req }),
     };
 
@@ -162,4 +185,4 @@ const notifyError = async ({ req, statusCode, message, error } = {}) => {
   }
 };
 
-module.exports = { notifyError, shouldNotify };
+module.exports = { notifyError, shouldNotify, buildHtml };
