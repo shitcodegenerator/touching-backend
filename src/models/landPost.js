@@ -151,7 +151,12 @@ const landPostSchema = new mongoose.Schema(
         {
           action: {
             type: String,
-            enum: ["approved", "rejected", "verification_updated"],
+            enum: [
+              "approved",
+              "rejected",
+              "verification_updated",
+              "content_edited",
+            ],
             required: true,
           },
           operator: {
@@ -165,6 +170,18 @@ const landPostSchema = new mongoose.Schema(
           after: {
             landNumberVerified: Boolean,
             authorizationLetterVerified: Boolean,
+          },
+          // content_edited 專用：後台編輯內容的逐欄差異（值型別依欄位而異，故用 Mixed）
+          changes: {
+            type: [
+              {
+                _id: false,
+                field: { type: String, required: true },
+                before: mongoose.Schema.Types.Mixed,
+                after: mongoose.Schema.Types.Mixed,
+              },
+            ],
+            default: undefined,
           },
           createdAt: { type: Date, required: true },
         },

@@ -557,3 +557,114 @@ test("投稿：當日計數以台灣午夜為起點", async (t) => {
   assert.equal(start.getUTCMinutes(), 0);
   assert.ok(Date.now() - start.getTime() < 24 * 60 * 60 * 1000);
 });
+
+const adminEditRequest = (body) => ({
+  params: { id: POST_ID },
+  body,
+  userData: { userId: ADMIN_ID, username: "editor" },
+});
+
+test("後台僅能編輯已核准案件", async (t) => {
+  const fixture = hydratedAdminPost({ status: "pending", version: 1 });
+  replaceMethod(t, LandPost, "findById", async () => fixture.post);
+  const response = createResponse();
+
+  await landPostController.adminUpdateLandPost(
+    adminEditRequest({ description: "新描述", version: 1 }),
+    response.res,
+  );
+
+  assert.equal(response.state.statusCode, 400);
+  assert.equal(fixture.saveCalls(), 0);
+});
+
+test("後台編輯版本號不符時回 409", async (t) => {
+  const fixture = hydratedAdminPost({ version: 3 });
+  replaceMethod(t, LandPost, "findById", async () => fixture.post);
+  const response = createResponse();
+
+  await landPostController.adminUpdateLandPost(
+    adminEditRequest({ description: "新描述", version: 2 }),
+    response.res,
+  );
+
+  assert.equal(response.state.statusCode, 409);
+  assert.equal(fixture.saveCalls(), 0);
+});
+
+test("後台編輯已核准案件會套用變更、遞增版本並記錄逐欄差異", async (t) => {
+  const fixture = hydratedAdminPost({
+    version: 2,
+    description: "舊描述",
+    city: "臺北市",
+    priceBudget: "3000",
+    images: [{ key: "a", url: "https://example.com/a.jpg" }],
+  });
+  fixture.post.populate = async () => fixture.post;
+  replaceMethod(t, LandPost, "findById", async () => fixture.post);
+  const response = createResponse();
+
+  await landPostController.adminUpdateLandPost(
+    adminEditRequest({
+      description: "新描述",
+      city: "臺北市",
+      priceBudget: "",
+      images: [],
+      version: 2,
+    }),
+    response.res,
+  );
+
+  assert.equal(response.state.statusCode, 200);
+  assert.equal(fixture.saveCalls(), 1);
+  assert.equal(fixture.post.description, "新描述");
+  assert.equal(fixture.post.status, "approved");
+  assert.equal(fixture.post.version, 3);
+  assert.equal(fixture.post.lastEditedAt, undefined);
+  assert.equal(fixture.post.images.length, 1, "後台編輯不得異動圖片");
+  const log = fixture.post.reviewLogs.at(-1);
+  assert.equal(log.action, "content_edited");
+  assert.equal(log.operator.username, "editor");
+  assert.deepEqual(
+    log.changes.map((c) => ({ field: c.field, before: c.before, after: c.after })),
+    [
+      { field: "description", before: "舊描述", after: "新描述" },
+      { field: "priceBudget", before: "3000", after: null },
+    ],
+  );
+});
+
+test("後台編輯內容無變更時不儲存也不新增紀錄", async (t) => {
+  const fixture = hydratedAdminPost({ version: 1, description: "相同" });
+  fixture.post.populate = async () => fixture.post;
+  replaceMethod(t, LandPost, "findById", async () => fixture.post);
+  const response = createResponse();
+
+  await landPostController.adminUpdateLandPost(
+    adminEditRequest({ description: "相同", version: 1 }),
+    response.res,
+  );
+
+  assert.equal(response.state.statusCode, 200);
+  assert.equal(fixture.saveCalls(), 0);
+  assert.equal(fixture.post.version, 1);
+  assert.equal(fixture.post.reviewLogs, undefined);
+});
+
+test("後台編輯 API 需管理員認證", async (t) => {
+  let findByIdCalls = 0;
+  replaceMethod(t, LandPost, "findById", () => {
+    findByIdCalls += 1;
+  });
+  const { server, baseUrl } = await startApi();
+  t.after(() => closeServer(server));
+
+  const response = await fetch(`${baseUrl}/land-post/admin/${POST_ID}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ description: "x", version: 1 }),
+  });
+
+  assert.equal(response.status, 401);
+  assert.equal(findByIdCalls, 0);
+});

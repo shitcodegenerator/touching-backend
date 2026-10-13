@@ -16,11 +16,12 @@ const parseVerificationPatch = (body = {}) => {
   return Object.fromEntries(KEYS.map((key) => [key, body[key]]));
 };
 
-const createReviewLog = ({ action, operator, before, after }) => ({
+const createReviewLog = ({ action, operator, before, after, changes }) => ({
   action,
   operator: { userId: String(operator.userId), username: String(operator.username) },
   ...(before && { before }),
   ...(after && { after }),
+  ...(changes && { changes }),
   createdAt: new Date(),
 });
 

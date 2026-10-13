@@ -9,6 +9,7 @@ const {
   deleteObjects,
 } = require("../utils/r2Client.js");
 const { sendSuccess, sendError } = require("../utils/response.js");
+const { diffLandPostContent } = require("../utils/landPostContentDiff.js");
 const { isValidObjectId } = require("../utils/objectId.js");
 const { brandEmailLayout } = require("../email/brandLayout.js");
 const {
@@ -434,6 +435,11 @@ const updateLandPostSchema = Joi.object({
   version: Joi.number().required().messages({
     "any.required": "版本號為必填",
   }),
+});
+
+// 後台編輯：沿用會員編輯驗證規則，但忽略圖片（圖片異動牽涉 R2，維持由投稿者處理）
+const adminUpdateLandPostSchema = updateLandPostSchema.keys({
+  images: Joi.any().strip(),
 });
 
 // Sanitize all text fields in body
@@ -1183,6 +1189,59 @@ const adminUpdateLandPostVerification = async (req, res) => {
 };
 
 /**
+ * [Admin] 編輯已核准案件內容，並於 reviewLogs 記錄逐欄差異
+ */
+const adminUpdateLandPost = async (req, res) => {
+  if (!isValidObjectId(req.params.id)) {
+    return sendError(res, "找不到該案件", 404);
+  }
+
+  const { error, value } = adminUpdateLandPostSchema.validate(req.body, {
+    abortEarly: false,
+    stripUnknown: true,
+  });
+  if (error) {
+    const messages = error.details.map((d) => d.message).join("; ");
+    return sendError(res, messages, 400);
+  }
+
+  const post = await LandPost.findById(req.params.id);
+  if (!post) {
+    return sendError(res, "找不到該投稿", 404);
+  }
+  if (post.status !== "approved") {
+    return sendError(res, "僅已核准案件可由後台編輯", 400);
+  }
+  if (value.version !== post.version) {
+    return sendError(res, "資料已被更新，請重新載入後再編輯", 409);
+  }
+
+  const { version, ...updateFields } = value;
+  const sanitized = sanitizeBody(updateFields);
+  const changes = diffLandPostContent(post.toObject(), sanitized);
+
+  if (changes.length > 0) {
+    // 只套用有變更的欄位；清空（null）時移除欄位。不更新 lastEditedAt（該欄位專指投稿者編輯）
+    for (const { field, after } of changes) {
+      post.set(field, after ?? undefined);
+    }
+    post.version = post.version + 1;
+    post.reviewLogs = post.reviewLogs || [];
+    post.reviewLogs.push(
+      createReviewLog({
+        action: "content_edited",
+        operator: req.userData,
+        changes,
+      }),
+    );
+    await post.save();
+  }
+
+  await post.populate("userId", "name username email mobile");
+  return sendSuccess(res, post.toObject());
+};
+
+/**
  * [Admin] 刪除土地投稿（不限狀態，同時清除 R2 圖片）
  */
 const adminDeleteLandPost = async (req, res) => {
@@ -1521,6 +1580,7 @@ module.exports = {
   adminApproveLandPost,
   adminRejectLandPost,
   adminUpdateLandPostVerification,
+  adminUpdateLandPost,
   adminReplyLandPost,
   adminDeleteLandPost,
   createInterest,

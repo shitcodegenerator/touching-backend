@@ -72,6 +72,11 @@ router.patch(
   authenticateAdmin,
   landPostController.adminReplyLandPost,
 );
+router.put(
+  "/admin/:id",
+  authenticateAdmin,
+  landPostController.adminUpdateLandPost,
+);
 router.delete(
   "/admin/:id",
   authenticateAdmin,
