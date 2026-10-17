@@ -659,8 +659,9 @@ const createLandPost = async (req, res) => {
     env,
   });
 
-  // 即時通知管理員有新投稿（背景寄送，不阻塞回應、寄信失敗不影響投稿建立）
-  sendNewPostNotificationEmail({ post }).catch((mailErr) => {
+  // 即時通知管理員有新投稿（寄信失敗不影響投稿建立）
+  // 必須 await：Cloud Run 回應送出後會節流 CPU，背景寄送可能卡住或遺失
+  await sendNewPostNotificationEmail({ post }).catch((mailErr) => {
     console.error("[land-post] 新投稿通知信寄送失敗:", mailErr);
   });
 
@@ -1086,8 +1087,8 @@ const adminApproveLandPost = async (req, res) => {
   if (reviewNote) post.reviewNote = sanitizeText(reviewNote);
   await post.save();
 
-  // 射後不理：通知失敗不影響審核結果（見 src/utils/notifySite.js）
-  notifyListingApproved(buildLineNotifyData(post));
+  // 通知失敗不影響審核結果（notifySite 永不 throw）；await 的理由見 src/utils/notifySite.js
+  await notifyListingApproved(buildLineNotifyData(post));
 
   return sendSuccess(res, post.toObject());
 };
@@ -1347,13 +1348,15 @@ const adminReplyLandPost = async (req, res) => {
   post.reviewReplies.push(reply);
   await post.save();
 
-  // 背景寄送通知信（會員註冊信箱 + dontz3210），失敗不影響回覆建立
+  // 寄送通知信（會員註冊信箱 + dontz3210）與 LINE 推播，失敗都不影響回覆建立。
+  // 兩者並行並 await：Cloud Run 回應送出後會節流 CPU，背景工作可能卡住或遺失
   const memberEmail = post.userId?.email;
-  sendReviewReplyEmail({ post, memberEmail, reply }).catch((mailErr) => {
-    console.error("[land-post] 意見回覆通知信寄送失敗:", mailErr);
-  });
-
-  notifyListingNeedInfo(buildLineNotifyData(post));
+  await Promise.all([
+    sendReviewReplyEmail({ post, memberEmail, reply }).catch((mailErr) => {
+      console.error("[land-post] 意見回覆通知信寄送失敗:", mailErr);
+    }),
+    notifyListingNeedInfo(buildLineNotifyData(post)),
+  ]);
 
   const result = post.toObject();
   result.userId = post.userId?._id || null;

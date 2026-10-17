@@ -1,0 +1,17 @@
+# 金鑰與本機設定：一律不進映像檔（改由 Secret Manager 注入）
+.env
+.env.*
+
+# scripts/ 內含正式資料備份與遷移報告（含個資），絕不打包
+scripts
+
+node_modules
+logs
+*.log
+.git
+.github
+.claude
+docs
+openspec
+*.md
+vercel.json
